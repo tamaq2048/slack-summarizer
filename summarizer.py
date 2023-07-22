@@ -10,18 +10,21 @@ import sys
 from datetime import datetime, timedelta
 import pytz
 import openai
+import time
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
 from lib.utils import remove_emoji, retry
 
 
-def summarize(text: str, language: str = "Japanese"):
+def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2):
     """
     Summarize a chat log in bullet points, in the specified language.
 
     Args:
         text (str): The chat log to summarize, in the format "Speaker: Message" separated by line breaks.
         language (str, optional): The language to use for the summary. Defaults to "Japanese".
+        max_retries (int, optional): The maximum number of retries if the API call fails. Defaults to 3.
+        initial_wait_time (int, optional): The initial wait time in seconds before the first retry. Defaults to 2.
 
     Returns:
         str: The summarized chat log in bullet point format.
@@ -30,31 +33,42 @@ def summarize(text: str, language: str = "Japanese"):
         >>> summarize("Alice: Hi\nBob: Hello\nAlice: How are you?\nBob: I'm doing well, thanks.")
         '- Alice greeted Bob.\n- Bob responded with a greeting.\n- Alice asked how Bob was doing.\n- Bob replied that he was doing well.'
     """
-    response = openai.ChatCompletion.create(
-        model=CHAT_MODEL,
-        temperature=TEMPERATURE,
-        messages=[{
-            "role":
-            "system",
-            "content":
-            "\n".join([
-                'The chat log format consists of one line per message in the format "Speaker: Message".',
-                "The `\\n` within the message represents a line break."
-                f'The user understands {language} only.',
-                f'So, The assistant need to speak in {language}.',
-            ])
-        }, {
-            "role":
-            "user",
-            "content":
-            "\n".join([
-                f"Please meaning summarize the following chat log to flat bullet list in {language}.",
-                "It isn't line by line summary.",
-                "Do not include greeting/salutation/polite expressions in summary.",
-                "With make it easier to read."
-                f"Write in {language}.", "", text
-            ])
-        }])
+    wait_time = initial_wait_time
+    for i in range(max_retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model=CHAT_MODEL,
+                temperature=TEMPERATURE,
+                messages=[{
+                    "role":
+                    "system",
+                    "content":
+                    "\n".join([
+                        'The chat log format consists of one line per message in the format "Speaker: Message".',
+                        "The `\\n` within the message represents a line break."
+                        f'The user understands {language} only.',
+                        f'So, The assistant need to speak in {language}.',
+                    ])
+                }, {
+                    "role":
+                    "user",
+                    "content":
+                    "\n".join([
+                        f"Please meaning summarize the following chat log to flat bullet list in {language}.",
+                        "It isn't line by line summary.",
+                        "Do not include greeting/salutation/polite expressions in summary.",
+                        "With make it easier to read."
+                        f"Write in {language}.", "", text
+                    ])
+                }])
+            break
+        except openai.OpenAIError as e:
+            if i < max_retries - 1:  # i is zero indexed
+                time.sleep(wait_time)  # wait before trying again
+                wait_time *= 2  # double the wait time for the next retry
+                continue
+            else:
+                raise e from None  # re-raise the last exception
 
     if DEBUG:
         print(response["choices"][0]["message"]['content'])
