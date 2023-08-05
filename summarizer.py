@@ -61,19 +61,36 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                         f"Write in {language}.", "", text
                     ])
                 }])
+            time.sleep(REQUEST_INTERVAL)  # wait to avoid exceeding rate limit
             break
-        except openai.OpenAIError as e:
+        except openai.ServiceUnavailableError as e:
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
                 wait_time *= 2  # double the wait time for the next retry
                 continue
             else:
-                raise e from None  # re-raise the last exception
+                message = {"role": "assistant", "content": "The service is currently unavailable. Please try again later."}
+                break
+        except openai.error.TimeoutError as e:
+            estimated_tokens = estimate_openai_chat_token_count(text)
+            message = {"role": "assistant", "content": f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."}
+            break
+        except openai.error.APIConnectionError as e:
+            message = {"role": "assistant", "content": "A connection error occurred. Please check your internet connection and try again."}
+            break
+        except openai.error.RateLimitError as e:
+            if i < max_retries - 1:
+                time.sleep(wait_time)
+                wait_time *= 2
+                continue
+            else:
+                
+                message = {"role": "assistant", "content": "Exceeded rate limit. Please try again later."}
+                break
 
     if DEBUG:
         print(response["choices"][0]["message"]['content'])
     return response["choices"][0]["message"]['content']
-
 
 def get_time_range():
     """
@@ -174,14 +191,16 @@ TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
 CHAT_MODEL = str(os.environ.get('CHAT_MODEL') or "gpt-3.5-turbo").strip()
 DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
 MAX_BODY_TOKENS = 3000
+USER_TYPE = str(os.environ.get('USER_TYPE') or 'free').strip()
 
 if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "":
     print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID must be set.")
     sys.exit(1)
 
-# Set OpenAI API key
-openai.api_key = OPEN_AI_TOKEN
-
+if USER_TYPE == 'paid':
+    REQUEST_INTERVAL: float = 1/3500  # interval for paid users
+else:
+    REQUEST_INTERVAL: float = 1/60  # interval for free users
 
 def runner():
     """
