@@ -84,7 +84,6 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 wait_time *= 2
                 continue
             else:
-                
                 message = {"role": "system", "content": "Exceeded rate limit. Please try again later."}
                 break
 
@@ -201,6 +200,9 @@ if USER_TYPE == 'paid':
     REQUEST_INTERVAL: float = 1/3500  # interval for paid users
 else:
     REQUEST_INTERVAL: float = 1/60  # interval for free users
+
+# Set OpenAI API key
+openai.api_key = OPEN_AI_TOKEN
 
 def runner():
     """
