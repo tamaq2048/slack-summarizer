@@ -89,12 +89,11 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 break
 
     if error_message:
-        response = []
-        response.setdefault("choices", [{}])[0]
-        response['choices'][0].setdefault("message", {})
-        response['choices'][0]['message']['role'] = "system"
-        response['choices'][0]['message']['content'] = error_message
-
+        choices = response.setdefault("choices", [{}])
+        message = choices[0].setdefault("message", {})
+        message['role'] = "system"
+        message['content'] = error_message
+        
     if DEBUG:
         print(response["choices"][0]["message"]['content'])
 
