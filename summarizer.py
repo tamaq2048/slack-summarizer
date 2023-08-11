@@ -33,6 +33,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
         >>> summarize("Alice: Hi\nBob: Hello\nAlice: How are you?\nBob: I'm doing well, thanks.")
         '- Alice greeted Bob.\n- Bob responded with a greeting.\n- Alice asked how Bob was doing.\n- Bob replied that he was doing well.'
     """
+    error_message = ""
     wait_time = initial_wait_time
     for i in range(max_retries):
         try:
@@ -69,14 +70,14 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 wait_time *= 2  # double the wait time for the next retry
                 continue
             else:
-                message = {"role": "system", "content": "The service is currently unavailable. Please try again later."}
+                error_message = "The service is currently unavailable. Please try again later."
                 break
         except openai.error.Timeout as e:
             estimated_tokens = estimate_openai_chat_token_count(text)
-            message = {"role": "system", "content": f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."}
+            error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text.""
             break
         except openai.error.APIConnectionError as e:
-            message = {"role": "system", "content": "A connection error occurred. Please check your internet connection and try again."}
+            error_message = "A connection error occurred. Please check your internet connection and try again."
             break
         except openai.error.RateLimitError as e:
             if i < max_retries - 1:
@@ -84,11 +85,18 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 wait_time *= 2
                 continue
             else:
-                message = {"role": "system", "content": "Exceeded rate limit. Please try again later."}
+                error_message = "Exceeded rate limit. Please try again later."
                 break
+
+    if error_message:
+        response.setdefault("choices", [{}])[0]
+        response['choices'][0].setdefault("message", {})
+        response['choices'][0]['message']['role'] = "system"
+        response['choices'][0]['message']['content'] = error_message
 
     if DEBUG:
         print(response["choices"][0]["message"]['content'])
+
     return response["choices"][0]["message"]['content']
 
 def get_time_range():
