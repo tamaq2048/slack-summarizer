@@ -63,20 +63,20 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 }])
             time.sleep(REQUEST_INTERVAL)  # wait to avoid exceeding rate limit
             break
-        except openai.ServiceUnavailableError as e:
+        except openai.error.ServiceUnavailableError as e:
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
                 wait_time *= 2  # double the wait time for the next retry
                 continue
             else:
-                message = {"role": "assistant", "content": "The service is currently unavailable. Please try again later."}
+                message = {"role": "system", "content": "The service is currently unavailable. Please try again later."}
                 break
         except openai.error.TimeoutError as e:
             estimated_tokens = estimate_openai_chat_token_count(text)
-            message = {"role": "assistant", "content": f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."}
+            message = {"role": "system", "content": f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."}
             break
         except openai.error.APIConnectionError as e:
-            message = {"role": "assistant", "content": "A connection error occurred. Please check your internet connection and try again."}
+            message = {"role": "system", "content": "A connection error occurred. Please check your internet connection and try again."}
             break
         except openai.error.RateLimitError as e:
             if i < max_retries - 1:
@@ -85,7 +85,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 continue
             else:
                 
-                message = {"role": "assistant", "content": "Exceeded rate limit. Please try again later."}
+                message = {"role": "system", "content": "Exceeded rate limit. Please try again later."}
                 break
 
     if DEBUG:
