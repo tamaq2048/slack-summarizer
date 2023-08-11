@@ -71,7 +71,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
             else:
                 message = {"role": "system", "content": "The service is currently unavailable. Please try again later."}
                 break
-        except openai.error.TimeoutError as e:
+        except openai.error.Timeout as e:
             estimated_tokens = estimate_openai_chat_token_count(text)
             message = {"role": "system", "content": f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."}
             break
