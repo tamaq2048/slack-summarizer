@@ -74,7 +74,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 break
         except openai.error.Timeout as e:
             estimated_tokens = estimate_openai_chat_token_count(text)
-            error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text.""
+            error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
             break
         except openai.error.APIConnectionError as e:
             error_message = "A connection error occurred. Please check your internet connection and try again."
