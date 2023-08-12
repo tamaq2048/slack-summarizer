@@ -8,9 +8,9 @@ import os
 import re
 import sys
 from datetime import datetime, timedelta
+import time
 import pytz
 import openai
-import time
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
 from lib.utils import remove_emoji, retry
@@ -65,6 +65,9 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
             time.sleep(REQUEST_INTERVAL)  # wait to avoid exceeding rate limit
             break
         except openai.error.ServiceUnavailableError as e:
+            if DEBUG:
+                print(e)
+
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
                 wait_time *= 2  # double the wait time for the next retry
@@ -73,13 +76,22 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 error_message = "The service is currently unavailable. Please try again later."
                 break
         except openai.error.Timeout as e:
+            if DEBUG:
+                print(e)
+
             estimated_tokens = estimate_openai_chat_token_count(text)
             error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
             break
         except openai.error.APIConnectionError as e:
+            if DEBUG:
+                print(e)
+
             error_message = "A connection error occurred. Please check your internet connection and try again."
             break
         except openai.error.RateLimitError as e:
+            if DEBUG:
+                print(e)
+
             if i < max_retries - 1:
                 time.sleep(wait_time)
                 wait_time *= 2
