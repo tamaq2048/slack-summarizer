@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import time
 import pytz
 import openai
+import tiktoken
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
 from lib.utils import remove_emoji, retry
