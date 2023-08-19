@@ -14,7 +14,7 @@ import openai
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
 from lib.utils import remove_emoji, retry
-
+from tiktoken import Tokenizer
 
 def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2):
     """
@@ -85,9 +85,14 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
         except openai.error.APIConnectionError as e:
             if DEBUG:
                 print(e)
-
-            error_message = "A connection error occurred. Please check your internet connection and try again."
-            break
+                
+            if i < max_retries - 1:  # i is zero indexed
+                time.sleep(wait_time)  # wait before trying again
+                wait_time *= 2  # double the wait time for the next retry
+                continue
+            else:
+                error_message = "A connection error occurred. Please check your internet connection and try again."
+                break
         except openai.error.RateLimitError as e:
             if DEBUG:
                 print(e)
@@ -149,27 +154,10 @@ def estimate_openai_chat_token_count(text: str) -> int:
         >>> estimate_openai_chat_token_count("Hello, how are you?")
         7
     """
-    # Split the text into words and count the number of characters of each type
-    pattern = re.compile(
-        r"""(
-            \d+       | # digits
-            [a-z]+    | # alphabets
-            \s+       | # whitespace
-            .           # other characters
-            )""", re.VERBOSE | re.IGNORECASE)
-    matches = re.findall(pattern, text)
+    tokenizer = Tokenizer()
+    token_count = len(tokenizer.encode(text))
 
-    # based on https://help.openai.com/en/articles/4936856-what-are-tokens-and-how-to-count-them
-    def counter(tok):
-        if tok == ' ' or tok == '\n':
-            return 0
-        elif tok.isdigit() or tok.isalpha():
-            return (len(tok) + 3) // 4
-        else:
-            return 1
-
-    return sum(map(counter, matches))
-
+    return token_count
 
 def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
     """
