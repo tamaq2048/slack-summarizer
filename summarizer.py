@@ -11,10 +11,11 @@ from datetime import datetime, timedelta
 import time
 import pytz
 import openai
+import tiktoken
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
 from lib.utils import remove_emoji, retry
-from tiktoken import StringTokenizer
+from tiktoken import Tokenizer
 
 def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2):
     """
@@ -154,9 +155,10 @@ def estimate_openai_chat_token_count(text: str) -> int:
         >>> estimate_openai_chat_token_count("Hello, how are you?")
         7
     """
-    tokenizer = StringTokenizer()
+    encoding = tiktoken.encoding_for_model(ENCODING_MODEL)
+    tokenizer = Tokenizer(encoding)
     token_count = len(tokenizer.encode(text))
-    
+
     return token_count
 
 def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
@@ -197,6 +199,7 @@ LANGUAGE = str(os.environ.get('LANGUAGE') or "Japanese").strip()
 TIMEZONE_STR = str(os.environ.get('TIMEZONE') or 'Asia/Tokyo').strip()
 TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
 CHAT_MODEL = str(os.environ.get('CHAT_MODEL') or "gpt-3.5-turbo").strip()
+ENCODING_MODEL = str(os.environ.get('ENCODING_MODEL') or "cl100k_base").strip()
 DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
 MAX_BODY_TOKENS = 3000
 USER_TYPE = str(os.environ.get('USER_TYPE') or 'free').strip()
