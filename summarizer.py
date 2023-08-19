@@ -154,9 +154,9 @@ def estimate_openai_chat_token_count(text: str) -> int:
         >>> estimate_openai_chat_token_count("Hello, how are you?")
         7
     """
-    encoding = tiktoken.encoding_for_model(ENCODING_MODEL)
+    encoding = tiktoken.get_encoding(ENCODING_MODEL)
     token_count = len(encoding.encode(text))
-    
+
     return token_count
 
 def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
