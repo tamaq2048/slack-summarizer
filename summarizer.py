@@ -14,7 +14,7 @@ import openai
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
 from lib.utils import remove_emoji, retry
-from tiktoken import tokenizers
+from tiktoken import Tokenizer
 
 def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2):
     """
@@ -154,7 +154,7 @@ def estimate_openai_chat_token_count(text: str) -> int:
         >>> estimate_openai_chat_token_count("Hello, how are you?")
         7
     """
-    tokenizer = tokenizers.get(CHAT_MODEL)
+    tokenizer = Tokenizer()
     token_count = len(tokenizer.encode(text))
 
     return token_count
