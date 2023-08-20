@@ -199,17 +199,12 @@ TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
 CHAT_MODEL = str(os.environ.get('CHAT_MODEL') or "gpt-3.5-turbo").strip()
 ENCODING_MODEL = str(os.environ.get('ENCODING_MODEL') or "cl100k_base").strip()
 DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
-MAX_BODY_TOKENS = 3000
-USER_TYPE = str(os.environ.get('USER_TYPE') or 'free').strip()
+MAX_BODY_TOKENS = int(os.environ.get('MAX_BODY_TOKENS') or 3000)
+REQUEST_INTERVAL = float(os.environ.get('REQUEST_INTERVAL') or 1/60)
 
 if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "":
     print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID must be set.")
     sys.exit(1)
-
-if USER_TYPE == 'paid':
-    REQUEST_INTERVAL: float = 1/3500  # interval for paid users
-else:
-    REQUEST_INTERVAL: float = 1/60  # interval for free users
 
 # Set OpenAI API key
 openai.api_key = OPEN_AI_TOKEN

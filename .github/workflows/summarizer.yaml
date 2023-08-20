@@ -31,4 +31,11 @@ jobs:
           OPEN_AI_TOKEN: ${{ secrets.OPEN_AI_TOKEN }}
           SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
           SLACK_POST_CHANNEL_ID: ${{ secrets.SLACK_POST_CHANNEL_ID }}
-          USER_TYPE: ${{ secrets.USER_TYPE }}
+          LANGUAGE: ${{ secrets.LANGUAGE }}
+          TIMEZONE: ${{ secrets.TIMEZONE }}
+          TEMPERATURE: ${{ secrets.TEMPERATURE }}
+          CHAT_MODEL: ${{ secrets.CHAT_MODEL }}
+          ENCODING_MODEL: ${{ secrets.ENCODING_MODEL }}
+          DEBUG: ${{ secrets.DEBUG }}
+          MAX_BODY_TOKENS: ${{ secrets.MAX_BODY_TOKENS }}
+          REQUEST_INTERVAL: ${{ secrets.REQUEST_INTERVAL }}
