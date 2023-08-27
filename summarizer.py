@@ -64,9 +64,9 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 }])
             time.sleep(REQUEST_INTERVAL)  # wait to avoid exceeding rate limit
             break
-        except openai.error.ServiceUnavailableError as e:
+        except openai.error.ServiceUnavailableError as error:
             if DEBUG:
-                print(e)
+                print(error)
 
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
@@ -75,16 +75,16 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
             else:
                 error_message = "The service is currently unavailable. Please try again later."
                 break
-        except openai.error.Timeout as e:
+        except openai.error.Timeout as error:
             if DEBUG:
-                print(e)
+                print(error)
 
             estimated_tokens = estimate_openai_chat_token_count(text)
             error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
             break
-        except openai.error.APIConnectionError as e:
+        except openai.error.APIConnectionError as error:
             if DEBUG:
-                print(e)
+                print(error)
                 
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
@@ -93,9 +93,9 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
             else:
                 error_message = "A connection error occurred. Please check your internet connection and try again."
                 break
-        except openai.error.RateLimitError as e:
+        except openai.error.RateLimitError as error:
             if DEBUG:
-                print(e)
+                print(error)
 
             if i < max_retries - 1:
                 time.sleep(wait_time)

@@ -6,6 +6,8 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk import WebClient
 from lib.utils import retry, sort_by_numeric_prefix
 
+# Constants
+SKIP_SUMMARY_TAG = "#skip-summary"
 
 class SlackClient:
     """ A class for managing a Slack bot client.
@@ -241,6 +243,8 @@ class SlackClient:
             channels_info = [
                 channel for channel in result['channels']
                 if not channel["is_archived"] and channel["is_channel"]
+                    and not channel["is_ext_shared"] and not channel["is_org_shared"]
+                    and SKIP_SUMMARY_TAG not in channel["purpose"]["value"]
             ]
             channels_info = sort_by_numeric_prefix(channels_info,
                                                    get_key=lambda x: x["name"])
