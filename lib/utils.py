@@ -2,35 +2,45 @@
 
 import re
 import time
+from functools import wraps
 import emoji
 
-
-def retry(func, max_retries=5, sleep_time=10, exception=Exception):
-    """ A decorator function that retries the function call if it fails.
+def retry(max_retries=5, initial_sleep_time=10, error_type=Exception):
+    """
+    A decorator that retries the function call if a specified exception is raised,
+    with an exponential backoff strategy.
 
     Args:
-        func (callable): The function to be wrapped.
         max_retries (int, optional): The maximum number of retries. Defaults to 5.
-        sleep_time (int, optional): The sleep time in seconds between retries. Defaults to 10.
-        exception (Exception, optional): The expected exception class to catch and retry if raised. Defaults to Exception.
+        initial_sleep_time (int, optional): The initial sleep time in seconds between retries. Defaults to 10.
+        error_type (Exception, optional): The exception class to catch and retry if raised. Defaults to Exception.
 
     Returns:
-        result of func call.
+        wrapper: A wrapper function that will handle the retries.
 
-    Examples:
-        result = self.retry(lambda: slack_client.conversations_list(types="public_channel", exclude_archived=True, limit=1000))
+    Raises:
+        error_type: If 'func' raises 'error_type' and max_retries is reached.
+
+    Example:
+        @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
+        def post_summary(slack_client, summary, channel_id):
+            # function implementation here
     """
-
-    for i in range(max_retries):
-        try:
-            result = func()
-            return result
-        except exception as error:
-            if i == max_retries - 1:
-                raise error
-            time.sleep(sleep_time)
-    return None
-
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            sleep_time = initial_sleep_time
+            for i in range(max_retries):
+                try:
+                    result = func(*args, **kwargs)
+                    return result
+                except error_type as err:
+                    if i == max_retries - 1:
+                        raise err
+                    time.sleep(sleep_time)
+                    sleep_time *= 2  # double the sleep time for the next retry
+        return wrapper
+    return decorator
 
 def sort_by_numeric_prefix(lst, get_key=lambda x: x):
     """

@@ -5,7 +5,6 @@ https://github.com/masuidrive/slack-summarizer
   2023- [APACHE LICENSE, 2.0](https://www.apache.org/licenses/LICENSE-2.0)
 """
 import os
-import re
 import sys
 from datetime import datetime, timedelta
 import time
@@ -14,9 +13,10 @@ import openai
 import tiktoken
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
+from lib.slack import POST_SUMMARY_TAG
 from lib.utils import remove_emoji, retry
 
-def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2):
+def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2) -> str:
     """
     Summarize a chat log in bullet points, in the specified language.
 
@@ -106,11 +106,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 break
 
     if error_message:
-        response = {}
-        choices = response.setdefault("choices", [{}])
-        message = choices[0].setdefault("message", {})
-        message['role'] = "system"
-        message['content'] = error_message
+        return error_message
         
     if DEBUG:
         print(response["choices"][0]["message"]['content'])
@@ -188,11 +184,25 @@ def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
     result.append(current_sublist)
     return result
 
+@retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
+def post_summary(slack_client, summary, channel_id):
+    """
+    Post a summary to a Slack channel.
+
+    Args:
+        slack_client (SlackClient): The Slack client.
+        summary (str): The summary to post.
+        channel_id (str): The ID of the channel to post to.
+
+    Raises:
+        SlackApiError: If an error occurs.
+    """
+    slack_client.post_message(channel_id, summary)
 
 # Load settings from environment variables
-OPEN_AI_TOKEN = str(os.environ.get('OPEN_AI_TOKEN')).strip()
-SLACK_BOT_TOKEN = str(os.environ.get('SLACK_BOT_TOKEN')).strip()
-CHANNEL_ID = str(os.environ.get('SLACK_POST_CHANNEL_ID')).strip()
+OPEN_AI_TOKEN = os.environ.get('OPEN_AI_TOKEN', '').strip()
+SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN', '').strip()
+CHANNEL_ID = os.environ.get('SLACK_POST_CHANNEL_ID', '').strip()
 LANGUAGE = str(os.environ.get('LANGUAGE') or "Japanese").strip()
 TIMEZONE_STR = str(os.environ.get('TIMEZONE') or 'Asia/Tokyo').strip()
 TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
@@ -229,19 +239,28 @@ def runner():
         # remove emojis in messages
         messages = list(map(remove_emoji, messages))
 
-        result_text.append(f"----\n<#{channel['id']}>\n")
+        channel_summary = []
         for splitted_messages in split_messages_by_token_count(messages):
             text = summarize("\n".join(splitted_messages), LANGUAGE)
-            result_text.append(text)
+            channel_summary.append(text)
+
+        # Post summary to the channel if #post-summary tag is in the channel description
+        if POST_SUMMARY_TAG in channel["purpose"]["value"]:
+            title = f"{start_time.strftime('%Y-%m-%d')} {channel['name']} summary\n\n"
+            summary = title + "\n".join(channel_summary)
+            post_summary(slack_client, summary, channel["id"])
+
+        result_text.append(f"----\n<#{channel['id']}>\n")
+        result_text.extend(channel_summary)
 
     title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
 
     if DEBUG:
         print("\n".join(result_text))
     else:
-        retry(lambda: slack_client.postSummary(title + "\n".join(result_text)),
-              exception=SlackApiError)
-
+        title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
+        summary = title + "\n".join(result_text)
+        post_summary(slack_client, summary, CHANNEL_ID)
 
 if __name__ == '__main__':
     runner()

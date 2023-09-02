@@ -8,6 +8,8 @@ from lib.utils import retry, sort_by_numeric_prefix
 
 # Constants
 SKIP_SUMMARY_TAG = "#skip-summary"
+ADD_SUMMARY_TAG = "#add-summary"
+POST_SUMMARY_TAG = "#post-summary"
 
 class SlackClient:
     """ A class for managing a Slack bot client.
@@ -28,14 +30,15 @@ class SlackClient:
         self.users = self._get_users_info()
         self.channels = self._get_channels_info()
         self._summary_channel = summary_channel
-
-    def postSummary(self, text: str):
-        response = self.client.chat_postMessage(channel=self._summary_channel,
-                                                text=text)
+    
+    def postSummary(self, text: str, channel=None):
+        if channel is None:
+            channel = self._summary_channel
+        response = self.client.chat_postMessage(channel=channel, text=text)
         if not response["ok"]:
             print(f'Failed to post message: {response["error"]}')
             raise SlackApiError('Failed to post message', response["error"])
-
+    
     def load_messages(self, channel_id: str, start_time: datetime,
                       end_time: datetime) -> list:
         """ Load the chat history for the specified channel between the given start and end times.
@@ -243,9 +246,9 @@ class SlackClient:
             channels_info = [
                 channel for channel in result['channels']
                 if not channel["is_archived"] and channel["is_channel"]
-                    and not channel["is_ext_shared"] and not channel["is_org_shared"]
+                    and (not channel["is_ext_shared"] and not channel["is_org_shared"] or ADD_SUMMARY_TAG in channel["purpose"]["value"])
                     and SKIP_SUMMARY_TAG not in channel["purpose"]["value"]
-            ]
+             ]
             channels_info = sort_by_numeric_prefix(channels_info,
                                                    get_key=lambda x: x["name"])
             return channels_info
