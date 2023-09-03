@@ -123,9 +123,11 @@ class SlackClient:
             "Alice: Hi, Bob! How's it going?"
         """
 
+        @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
         def _join_conversations(channel):
             return self.client.conversations_join(channel=channel)
-        
+
+        @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
         def _fetch_conversations_history(channel, oldest, latest, limit):
             return self.client.conversations_history(
                 channel=channel,
@@ -135,14 +137,9 @@ class SlackClient:
         
         next_cursor = None
         messages_info = []
-        fetch_conversations_history_retry = retry(max_retries=5, initial_sleep_time=10, 
-                                                  error_type=SlackApiError)(_fetch_conversations_history)
-        join_conversations_retry = retry(max_retries=5, initial_sleep_time=10, 
-                                        error_type=SlackApiError)(_join_conversations)
-        
         try:
             self._wait_api_call()
-            result = fetch_conversations_history_retry(
+            result = _fetch_conversations_history(
                 channel=channel_id,
                 oldest=str(start_time.timestamp()),
                 latest=str(end_time.timestamp()),
@@ -150,13 +147,13 @@ class SlackClient:
         except SlackApiError as error:
             if error.response['error'] == 'not_in_channel':
                 self._wait_api_call()
-                response = join_conversations_retry(channel=channel_id)
+                response = _join_conversations(channel=channel_id)
                 if not response["ok"]:
                     print("Failed conversations_join()")
                     sys.exit(1)
                 time.sleep(wait_time)
                 self._wait_api_call()
-                result = fetch_conversations_history_retry(
+                result = _fetch_conversations_history(
                     channel=channel_id,
                     oldest=str(start_time.timestamp()),
                     latest=str(end_time.timestamp()),
@@ -167,7 +164,7 @@ class SlackClient:
             
         while True:
             self._wait_api_call()
-            result = fetch_conversations_history_retry(
+            result = _fetch_conversations_history(
                 channel=channel_id,
                 oldest=str(start_time.timestamp()),
                 latest=str(end_time.timestamp()),
@@ -254,9 +251,17 @@ class SlackClient:
                 user_id)
             body_text = body_text.replace(match.group(0), user_name)
         return body_text
+    
+    def _get_users_info(self, wait_time=3) -> list:
+        """
+        Retrieve information about all users in the Slack workspace.
 
-    def _get_users_info(self) -> list:
-        """ Retrieve information about all users in the Slack workspace.
+        This method retrieves a list of dictionaries containing information about each user,
+        including their ID, name, and other metadata. It handles pagination by making multiple
+        API calls if necessary.
+
+        Args:
+            wait_time (int, optional): The time to wait between API calls in seconds. Defaults to 3 seconds.
 
         Returns:
             list: A list of dictionaries containing information about each user,
@@ -266,7 +271,7 @@ class SlackClient:
             SlackApiError: If an error occurs while attempting to retrieve the user information.
 
         Examples:
-            >>> users = get_users_info()
+            >>> users = get_users_info(wait_time=5)
             >>> print(users[0])
             {
                 'id': 'U12345678',
@@ -276,27 +281,30 @@ class SlackClient:
                 ...
             }
         """
+        @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
+        def _fetch_users_info(cursor=None, limit=100):
+            return self.client.users_list(cursor=cursor, limit=limit)
+
         try:
             users = []
             next_cursor = None
             while True:
                 self._wait_api_call()
-                users_info = retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)(lambda: self.client.users_list(
-                            cursor=next_cursor, limit=100))
-                time.sleep(3)
+                users_info = _fetch_users_info(cursor=next_cursor)
+                time.sleep(wait_time)
                 users.extend(users_info['members'])
                 if users_info["response_metadata"]["next_cursor"]:
-                    next_cursor = users_info["response_metadata"][
-                        "next_cursor"]
+                    next_cursor = users_info["response_metadata"]["next_cursor"]
                 else:
                     break
             return users
         except SlackApiError as error:
             print(f"Error : {error}")
             sys.exit(1)
-
+            
     def _get_channels_info(self) -> list:
-        """ Retrieve information about all public channels in the Slack workspace.
+        """
+        Retrieve information about all public channels in the Slack workspace.
 
         Returns:
             list: A list of dictionaries containing information about each public channel, including its ID, name, and other metadata. sorted by channel name.
@@ -314,19 +322,23 @@ class SlackClient:
                 'is_archived': False,
                 ...
             }
-        """
+        """ 
+        @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
+        def _fetch_channels_info():
+            return self.client.conversations_list(
+                    types="public_channel", exclude_archived=True, limit=1000)
+
         try:
             self._wait_api_call()
-            result = retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)(lambda: self.client.conversations_list(
-                    types="public_channel", exclude_archived=True, limit=1000))
+            result = _fetch_channels_info()
             channels_info = [
                 channel for channel in result['channels']
                 if not channel["is_archived"] and channel["is_channel"]
                     and (not channel["is_ext_shared"] and not channel["is_org_shared"] or ADD_SUMMARY_TAG in channel["purpose"]["value"])
                     and SKIP_SUMMARY_TAG not in channel["purpose"]["value"]
-             ]
+            ]
             channels_info = sort_by_numeric_prefix(channels_info,
-                                                   get_key=lambda x: x["name"])
+                                                get_key=lambda x: x["name"])
             return channels_info
         except SlackApiError as error:
             print(f"Error : {error}")
