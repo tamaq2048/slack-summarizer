@@ -338,7 +338,7 @@ class SlackClient:
             channels_info = [
                 channel for channel in result['channels']
                 if not channel["is_archived"] and channel["is_channel"]
-                    and (not channel["is_ext_shared"] and not channel["is_org_shared"] or ADD_SUMMARY_TAG in channel["purpose"]["value"])
+                    and ((not channel["is_ext_shared"] and not channel["is_org_shared"]) or ADD_SUMMARY_TAG in channel["purpose"]["value"])
                     and SKIP_SUMMARY_TAG not in channel["purpose"]["value"]
             ]
             channels_info = sort_by_numeric_prefix(channels_info,
