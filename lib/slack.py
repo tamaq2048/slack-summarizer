@@ -71,7 +71,7 @@ class SlackClient:
         self.channels = self._get_channels_info()
         self._summary_channel = summary_channel
     
-    def post(self, text: str, channel=None):
+    def post_message(self, text: str, channel=None):
         """
         Post a message to a specified Slack channel.
 
@@ -176,8 +176,9 @@ class SlackClient:
                 break
 
             messages_info.extend(result["messages"])
-            next_cursor = result['response_metadata']['next_cursor'] if result else None
-            if not next_cursor:
+            if result["has_more"]:
+                next_cursor = result['response_metadata']['next_cursor']
+            else:
                 break
             
         # Filter for human messages only
