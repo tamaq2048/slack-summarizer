@@ -128,12 +128,13 @@ class SlackClient:
             return self.client.conversations_join(channel=channel)
 
         @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
-        def _fetch_conversations_history(channel, oldest, latest, limit):
+        def _fetch_conversations_history(channel, oldest, latest, limit, cursor=None):
             return self.client.conversations_history(
                 channel=channel,
                 oldest=oldest,
                 latest=latest,
-                limit=limit)
+                limit=limit,
+                cursor=cursor)
         
         next_cursor = None
         messages_info = []
