@@ -176,7 +176,7 @@ class SlackClient:
                 break
 
             messages_info.extend(result["messages"])
-            next_cursor = result['response_metadata']['next_cursor']
+            next_cursor = result['response_metadata']['next_cursor'] if result else None
             if not next_cursor:
                 break
             
