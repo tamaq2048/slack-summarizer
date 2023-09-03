@@ -172,6 +172,9 @@ class SlackClient:
                 limit=1000,
                 cursor=next_cursor)
             
+            if result is None:
+                break
+
             messages_info.extend(result["messages"])
             next_cursor = result['response_metadata']['next_cursor']
             if not next_cursor:
