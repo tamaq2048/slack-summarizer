@@ -173,6 +173,7 @@ class SlackClient:
                 cursor=next_cursor)
             
             if result is None:
+                next_cursor = None
                 break
 
             messages_info.extend(result["messages"])
