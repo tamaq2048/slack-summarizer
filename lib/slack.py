@@ -181,10 +181,11 @@ class SlackClient:
                 return None
             
             messages_info.extend(result["messages"])
-
+            
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
             else:
+                next_cursor = None
                 break
                 
         # Filter for human messages only
