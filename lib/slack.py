@@ -165,23 +165,28 @@ class SlackClient:
             
         while True:
             self._wait_api_call()
-            result = _fetch_conversations_history(
-                channel=channel_id,
-                oldest=str(start_time.timestamp()),
-                latest=str(end_time.timestamp()),
-                limit=1000,
-                cursor=next_cursor)
+            try:
+                result = _fetch_conversations_history(
+                    channel=channel_id,
+                    oldest=str(start_time.timestamp()),
+                    latest=str(end_time.timestamp()),
+                    limit=1000,
+                    cursor=next_cursor)
+            except SlackApiError as error:
+                print(f"Error : {error}")
+                return None
             
             if result is None:
-                next_cursor = None
-                break
-
+                print("Error: result is None")
+                return None
+            
             messages_info.extend(result["messages"])
+
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
             else:
                 break
-            
+                
         # Filter for human messages only
         messages = list(filter(lambda m: "subtype" not in m, messages_info))
 
