@@ -257,12 +257,13 @@ def runner():
 
     title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
 
+    title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
+    summary = title + "\n".join(result_text)
+    post_summary(slack_client, summary, CHANNEL_ID)
+
     if DEBUG:
-        print("\n".join(result_text))
-    else:
-        title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
-        summary = title + "\n".join(result_text)
-        post_summary(slack_client, summary, CHANNEL_ID)
+        print("\n".join(summary))
+    
 
 if __name__ == '__main__':
     runner()
