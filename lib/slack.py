@@ -91,7 +91,7 @@ class SlackClient:
             raise SlackApiError('Failed to post message', response["error"])
     
     def load_messages(self, channel_id: str, start_time: datetime,
-                      end_time: datetime, wait_time: int = 5) -> list:
+                      end_time: datetime) -> list:
         """ 
         Load the chat history for the specified channel between the given start and end times.
 
@@ -99,7 +99,6 @@ class SlackClient:
             channel_id (str): The ID of the channel to retrieve the chat history for.
             start_time (datetime): The start time of the time range to retrieve chat history for.
             end_time (datetime): The end time of the time range to retrieve chat history for.
-            wait_time (int, optional): The time to wait before retrying the API call if an error occurs. Defaults to 5 seconds.
 
         Returns:
             list: A list of chat messages from the specified channel, in the format "Speaker: Message".
@@ -111,7 +110,6 @@ class SlackClient:
         Examples:
             >>> start_time = datetime(2022, 5, 1, 0, 0, 0)
             >>> end_time = datetime(2022, 5, 2, 0, 0, 0)
-            >>> wait_time = 10
             >>> messages = client.load_messages('C12345678', start_time, end_time, wait_time)
             >>> print(messages[0])
             "Alice: Hi, Bob! How's it going?"
@@ -130,33 +128,9 @@ class SlackClient:
                 limit=limit,
                 cursor=cursor)
         
-        next_cursor = None
         messages_info = []
-        try:
-            self._wait_api_call()
-            result = _fetch_conversations_history(
-                channel=channel_id,
-                oldest=str(start_time.timestamp()),
-                latest=str(end_time.timestamp()),
-                limit=1000)
-        except SlackApiError as error:
-            if error.response['error'] == 'not_in_channel':
-                self._wait_api_call()
-                response = _join_conversations(channel=channel_id)
-                if not response["ok"]:
-                    print("Failed conversations_join()")
-                    sys.exit(1)
-                time.sleep(wait_time)
-                self._wait_api_call()
-                result = _fetch_conversations_history(
-                    channel=channel_id,
-                    oldest=str(start_time.timestamp()),
-                    latest=str(end_time.timestamp()),
-                    limit=1000)
-            else:
-                print(f"Error : {error}")
-                return None
-            
+        next_cursor = None  # 初期のカーソルをNoneに設定
+
         while True:
             self._wait_api_call()
             try:
@@ -165,22 +139,29 @@ class SlackClient:
                     oldest=str(start_time.timestamp()),
                     latest=str(end_time.timestamp()),
                     limit=1000,
-                    cursor=next_cursor)
+                    cursor=next_cursor)  # カーソルを使用してメッセージを取得
             except SlackApiError as error:
-                print(f"Error : {error}")
-                return None
-            
+                if error.response['error'] == 'not_in_channel':
+                    self._wait_api_call()
+                    response = _join_conversations(channel=channel_id)
+                    if not response["ok"]:
+                        print("Failed conversations_join()")
+                        sys.exit(1)
+                    continue  # チャンネルに参加した後、再度メッセージの取得を試みる
+                else:
+                    print(f"Error : {error}")
+                    return None
+
             if result is None:
                 print("Error: result is None")
                 return None
-            
+
             messages_info.extend(result["messages"])
-            
+
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
             else:
-                next_cursor = None
-                break
+                break  # すべてのメッセージを取得した場合、ループを終了
                 
         # Filter for human messages only
         messages = list(filter(lambda m: "subtype" not in m, messages_info))
@@ -344,7 +325,7 @@ class SlackClient:
                     and SKIP_SUMMARY_TAG not in channel["purpose"]["value"]
             ]
             channels_info = sort_by_numeric_prefix(channels_info,
-                                                get_key=lambda x: x["name"])
+                                                    get_key=lambda x: x["name"])
             return channels_info
         except SlackApiError as error:
             print(f"Error : {error}")
