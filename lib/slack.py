@@ -13,8 +13,8 @@ Constants:
 
 Example:
     ```
-    client = SlackClient(SLACK_BOT_TOKEN, SUMMARY_CHANNEL_ID)
-    client.post("Hello, World!")
+    client = SlackClient(SLACK_BOT_TOKEN)
+    client.post_message("Hello, World!", "YOUR_CHANNEL_ID")
     ```
 
 Note:
@@ -44,53 +44,47 @@ class SlackClient:
 
     Args:
         slack_api_token (str): The Slack Bot token used to authenticate with the Slack API.
-        summary_channel (str): The Slack channel ID where the summary is posted.
 
     Attributes:
         client (WebClient): The Slack WebClient object used for API calls.
         users (list): A list of dictionaries containing information about each user in the Slack workspace.
         channels (list): A list of dictionaries containing information about each public channel in the Slack workspace.
-        _summary_channel (str): The Slack channel ID where the summary is posted.
 
     Example:
         ```
-        client = SlackClient(SLACK_BOT_TOKEN, SUMMARY_CHANNEL_ID)
-        client.post("Hello, World!")
+        client = SlackClient(SLACK_BOT_TOKEN)
+        client.post_message("Hello, World!", "YOUR_CHANNEL_ID")
         ```
 
     Methods:
-        post(text, channel=None): Post a message to a specified Slack channel.
+        post_message(text, channel): Post a message to a specified Slack channel.
         load_messages(channel_id, start_time, end_time): Load the chat history for the specified channel between the given start and end times.
         get_user_name(user_id): Get the name of a user with the given ID.
         replace_user_id_with_name(body_text): Replace user IDs in a chat message text with user names.
     """
 
-    def __init__(self, slack_api_token: str, summary_channel: str):
+    def __init__(self, slack_api_token: str):
         self.client = WebClient(token=slack_api_token)
         self.users = self._get_users_info()
         self.channels = self._get_channels_info()
-        self._summary_channel = summary_channel
-    
-    def post_message(self, text: str, channel=None):
+
+    def post_message(self, text: str, channel):
         """
         Post a message to a specified Slack channel.
 
         Args:
             text (str): The text of the message to be posted.
-            channel (str, optional): The ID of the channel to post the message to. 
-                Defaults to the summary channel specified during the initialization of the SlackClient object.
+            channel (str): The ID of the channel to post the message to.
 
         Raises:
             SlackApiError: If an error occurs while attempting to post the message.
 
         Example:
             ```
-            client = SlackClient(SLACK_BOT_TOKEN, SUMMARY_CHANNEL_ID)
-            client.post("Hello, World!")
+            client = SlackClient(SLACK_BOT_TOKEN)
+            client.post_message("Hello, World!", "YOUR_CHANNEL_ID")
             ```
         """
-        if channel is None:
-            channel = self._summary_channel
         response = self.client.chat_postMessage(channel=channel, text=text)
         if not response["ok"]:
             print(f'Failed to post message: {response["error"]}')

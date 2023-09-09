@@ -16,6 +16,19 @@ from lib.slack import SlackClient
 from lib.slack import POST_SUMMARY_TAG
 from lib.utils import remove_emoji, retry
 
+# Load settings from environment variables
+OPEN_AI_TOKEN = os.environ.get('OPEN_AI_TOKEN', '').strip()
+SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN', '').strip()
+CHANNEL_ID = os.environ.get('SLACK_POST_CHANNEL_ID', '').strip()
+LANGUAGE = str(os.environ.get('LANGUAGE') or "Japanese").strip()
+TIMEZONE_STR = str(os.environ.get('TIMEZONE') or 'Asia/Tokyo').strip()
+TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
+CHAT_MODEL = str(os.environ.get('CHAT_MODEL') or "gpt-3.5-turbo").strip()
+ENCODING_MODEL = str(os.environ.get('ENCODING_MODEL') or "cl100k_base").strip()
+DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
+MAX_BODY_TOKENS = int(os.environ.get('MAX_BODY_TOKENS') or 3000)
+REQUEST_INTERVAL = float(os.environ.get('REQUEST_INTERVAL') or 1/60)
+
 def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2) -> str:
     """
     Summarize a chat log in bullet points, in the specified language.
@@ -185,46 +198,35 @@ def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
     return result
 
 @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
-def post_summary(slack_client, summary, channel_id):
+def post_summary(slack_client, summary, channel_id=None):
     """
     Post a summary to a Slack channel.
 
     Args:
         slack_client (SlackClient): The Slack client.
         summary (str): The summary to post.
-        channel_id (str): The ID of the channel to post to.
+        channel_id (str, optional): The ID of the channel to post to. If not provided, defaults to CHANNEL_ID.
 
     Raises:
         SlackApiError: If an error occurs.
     """
-    slack_client.post_message(channel_id, summary)
-
-# Load settings from environment variables
-OPEN_AI_TOKEN = os.environ.get('OPEN_AI_TOKEN', '').strip()
-SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN', '').strip()
-CHANNEL_ID = os.environ.get('SLACK_POST_CHANNEL_ID', '').strip()
-LANGUAGE = str(os.environ.get('LANGUAGE') or "Japanese").strip()
-TIMEZONE_STR = str(os.environ.get('TIMEZONE') or 'Asia/Tokyo').strip()
-TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
-CHAT_MODEL = str(os.environ.get('CHAT_MODEL') or "gpt-3.5-turbo").strip()
-ENCODING_MODEL = str(os.environ.get('ENCODING_MODEL') or "cl100k_base").strip()
-DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
-MAX_BODY_TOKENS = int(os.environ.get('MAX_BODY_TOKENS') or 3000)
-REQUEST_INTERVAL = float(os.environ.get('REQUEST_INTERVAL') or 1/60)
-
-if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "":
-    print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID must be set.")
-    sys.exit(1)
-
-# Set OpenAI API key
-openai.api_key = OPEN_AI_TOKEN
-
+    if channel_id is None:
+        channel_id = CHANNEL_ID
+    slack_client.post_message(summary, channel_id)
+    
 def runner():
     """
     app runner
     """
-    slack_client = SlackClient(slack_api_token=SLACK_BOT_TOKEN,
-                               summary_channel=CHANNEL_ID)
+    if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "":
+        print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID must be set.")
+        sys.exit(1)
+    
+    # Set OpenAI API key
+    openai.api_key = OPEN_AI_TOKEN
+
+    # Set Slack Client
+    slack_client = SlackClient(slack_api_token=SLACK_BOT_TOKEN)
     start_time, end_time = get_time_range()
 
     result_text = []
