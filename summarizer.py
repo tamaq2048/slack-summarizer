@@ -28,14 +28,16 @@ ENCODING_MODEL = str(os.environ.get('ENCODING_MODEL') or "cl100k_base").strip()
 DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
 MAX_BODY_TOKENS = int(os.environ.get('MAX_BODY_TOKENS') or 3000)
 REQUEST_INTERVAL = float(os.environ.get('REQUEST_INTERVAL') or 1/60)
+SUMMARIZE_PROMPT = os.environ.get('SUMMARIZE_PROMPT', '').strip()
 
-def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initial_wait_time: int = 2) -> str:
+def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, initial_wait_time: int = 2) -> str:
     """
-    Summarize a chat log in bullet points, in the specified language.
+    Summarize a chat log in bullet points, in the specified language, using a given prompt.
 
     Args:
         text (str): The chat log to summarize, in the format "Speaker: Message" separated by line breaks.
-        language (str, optional): The language to use for the summary. Defaults to "Japanese".
+        prompt_text (str): The prompt to guide the summarization.
+        language (str): The language to use for the summary.
         max_retries (int, optional): The maximum number of retries if the API call fails. Defaults to 3.
         initial_wait_time (int, optional): The initial wait time in seconds before the first retry. Defaults to 2.
 
@@ -43,7 +45,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
         str: The summarized chat log in bullet point format.
 
     Examples:
-        >>> summarize("Alice: Hi\nBob: Hello\nAlice: How are you?\nBob: I'm doing well, thanks.")
+        >>> summarize("Alice: Hi\nBob: Hello\nAlice: How are you?\nBob: I'm doing well, thanks.", "Summarize the following chat log.")
         '- Alice greeted Bob.\n- Bob responded with a greeting.\n- Alice asked how Bob was doing.\n- Bob replied that he was doing well.'
     """
     error_message = ""
@@ -68,10 +70,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                     "user",
                     "content":
                     "\n".join([
-                        f"Please meaning summarize the following chat log to flat bullet list in {language}.",
-                        "It isn't line by line summary.",
-                        "Do not include greeting/salutation/polite expressions in summary.",
-                        "With make it easier to read."
+                        prompt_text,
                         f"Write in {language}.", "", text
                     ])
                 }])
@@ -79,7 +78,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
             break
         except openai.error.ServiceUnavailableError as error:
             if DEBUG:
-                print(error)
+                print(f"Error: {error}")
 
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
@@ -90,14 +89,14 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 break
         except openai.error.Timeout as error:
             if DEBUG:
-                print(error)
+                print(f"Error: {error}")
 
             estimated_tokens = estimate_openai_chat_token_count(text)
             error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
             break
         except openai.error.APIConnectionError as error:
             if DEBUG:
-                print(error)
+                print(f"Error: {error}")
                 
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
@@ -108,7 +107,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
                 break
         except openai.error.RateLimitError as error:
             if DEBUG:
-                print(error)
+                print(f"Error: {error}")
 
             if i < max_retries - 1:
                 time.sleep(wait_time)
@@ -122,7 +121,7 @@ def summarize(text: str, language: str = "Japanese", max_retries: int = 3, initi
         return error_message
         
     if DEBUG:
-        print(response["choices"][0]["message"]['content'])
+        print(f"Response: {response['choices'][0]['message']['content']}")
 
     return response["choices"][0]["message"]['content']
 
@@ -216,10 +215,20 @@ def post_summary(slack_client, summary, channel_id=None):
     
 def runner():
     """
-    app runner
+    The main function to run the Slack summarizer application.
+    
+    This function performs the following steps:
+    1. Validates the required environment variables.
+    2. Sets up the OpenAI API key and Slack client.
+    3. Determines the time range for message retrieval.
+    4. Checks and formats the SUMMARIZE_PROMPT based on the presence of the {language} placeholder.
+    5. Retrieves messages from Slack channels, summarizes them, and posts the summaries back to Slack.
+    
+    Raises:
+        SystemExit: If any of the required environment variables are not set.
     """
-    if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "":
-        print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID must be set.")
+    if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "" or SUMMARIZE_PROMPT == "":
+        print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID, SUMMARIZE_PROMPT must be set.")
         sys.exit(1)
     
     # Set OpenAI API key
@@ -229,10 +238,16 @@ def runner():
     slack_client = SlackClient(slack_api_token=SLACK_BOT_TOKEN)
     start_time, end_time = get_time_range()
 
+    # Set Prompt Text
+    if "{language}" in SUMMARIZE_PROMPT:
+        prompt_text = SUMMARIZE_PROMPT.format(language=LANGUAGE)
+    else:
+        prompt_text = SUMMARIZE_PROMPT
+
     result_text = []
     for channel in slack_client.channels:
         if DEBUG:
-            print(channel["name"])
+            print(f"Channel: {channel['name']}")
         messages = slack_client.load_messages(channel["id"], start_time,
                                               end_time)
         if messages is None:
@@ -243,7 +258,7 @@ def runner():
 
         channel_summary = []
         for splitted_messages in split_messages_by_token_count(messages):
-            text = summarize("\n".join(splitted_messages), LANGUAGE)
+            text = summarize("\n".join(splitted_messages), prompt_text, LANGUAGE)
             channel_summary.append(text)
 
         # Post summary to the channel if #post-summary tag is in the channel description
@@ -256,13 +271,11 @@ def runner():
         result_text.extend(channel_summary)
 
     title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
-
-    title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
     summary = title + "\n".join(result_text)
     post_summary(slack_client, summary, CHANNEL_ID)
 
     if DEBUG:
-        print("\n".join(summary))
+        print(f"Summary: {summary}")
     
 
 if __name__ == '__main__':

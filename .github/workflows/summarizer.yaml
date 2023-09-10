@@ -39,3 +39,4 @@ jobs:
           DEBUG: ${{ vars.DEBUG }}
           MAX_BODY_TOKENS: ${{ vars.MAX_BODY_TOKENS }}
           REQUEST_INTERVAL: ${{ vars.REQUEST_INTERVAL }}
+          SUMMARIZE_PROMPT: ${{ vars.SUMMARIZE_PROMPT }}
