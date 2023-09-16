@@ -257,7 +257,7 @@ def runner():
         else:
             messages = None
             if DEBUG:
-                print(f"Channel: {channel['name']} is No new message.")
+                print(f"Channel: {channel['name']} is no new message.")
         
         if messages is None:
             continue
