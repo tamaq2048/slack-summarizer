@@ -29,6 +29,7 @@ DEBUG = str(os.environ.get('DEBUG') or "").strip() != ""
 MAX_BODY_TOKENS = int(os.environ.get('MAX_BODY_TOKENS') or 3000)
 REQUEST_INTERVAL = float(os.environ.get('REQUEST_INTERVAL') or 1/60)
 SUMMARIZE_PROMPT = os.environ.get('SUMMARIZE_PROMPT', '').strip()
+OUTPUT_SLACK = os.environ.get('OUTPUT_SLACK', '').strip()
 
 def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, initial_wait_time: int = 2) -> str:
     """
@@ -196,6 +197,7 @@ def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
     result.append(current_sublist)
     return result
 
+
 @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
 def post_summary(slack_client, summary, channel_id=None):
     """
@@ -248,8 +250,14 @@ def runner():
     for channel in slack_client.channels:
         if DEBUG:
             print(f"Channel: {channel['name']}")
-        messages = slack_client.load_messages(channel["id"], start_time,
+        
+        # latestフィールドのタイムスタンプがstart_timeとend_time内に存在するかどうかを確認
+        if start_time <= float(channel['latest']['ts']) <= end_time:
+            messages = slack_client.load_messages(channel["id"], start_time,
                                               end_time)
+        else:
+            messages = None
+        
         if messages is None:
             continue
 
@@ -270,13 +278,13 @@ def runner():
         result_text.append(f"----\n<#{channel['id']}>\n")
         result_text.extend(channel_summary)
 
-    title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
-    summary = title + "\n".join(result_text)
-    post_summary(slack_client, summary, CHANNEL_ID)
+    if OUTPUT_SLACK:
+        title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
+        summary = title + "\n".join(result_text)
+        post_summary(slack_client, summary, CHANNEL_ID)
 
     if DEBUG:
         print(f"Summary: {summary}")
-    
 
 if __name__ == '__main__':
     runner()
