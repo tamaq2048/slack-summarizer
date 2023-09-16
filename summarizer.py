@@ -273,9 +273,10 @@ def runner():
         result_text.append(f"----\n<#{channel['id']}>\n")
         result_text.extend(channel_summary)
 
+    title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
+    summary = title + "\n".join(result_text)
+
     if OUTPUT_SLACK:
-        title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
-        summary = title + "\n".join(result_text)
         post_summary(slack_client, summary, CHANNEL_ID)
 
     if DEBUG:
