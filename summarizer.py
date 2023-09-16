@@ -248,17 +248,11 @@ def runner():
 
     result_text = []
     for channel in slack_client.channels:
-        # latestフィールドのタイムスタンプがstart_timeとend_time内に存在するかどうかを確認
-        if 'latest' in channel and start_time <= float(channel['latest']['ts']) <= end_time:
-            messages = slack_client.load_messages(channel["id"], start_time,
-                                              end_time)
-            if DEBUG:
-                print(f"Channel: {channel['name']}")
-        else:
-            messages = None
-            if DEBUG:
-                print(f"Channel: {channel['name']} is no new message.")
+        if DEBUG:
+            print(f"Channel: {channel['name']}")
         
+        messages = slack_client.load_messages(channel["id"], start_time,
+                                              end_time)
         if messages is None:
             continue
 
@@ -279,10 +273,9 @@ def runner():
         result_text.append(f"----\n<#{channel['id']}>\n")
         result_text.extend(channel_summary)
 
-    title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
-    summary = title + "\n".join(result_text)
-
     if OUTPUT_SLACK:
+        title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
+        summary = title + "\n".join(result_text)
         post_summary(slack_client, summary, CHANNEL_ID)
 
     if DEBUG:
