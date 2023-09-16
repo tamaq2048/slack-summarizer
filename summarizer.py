@@ -252,7 +252,7 @@ def runner():
             print(f"Channel: {channel['name']}")
         
         # latestフィールドのタイムスタンプがstart_timeとend_time内に存在するかどうかを確認
-        if start_time <= float(channel['latest']['ts']) <= end_time:
+        if 'latest' in channel and start_time <= float(channel['latest']['ts']) <= end_time:
             messages = slack_client.load_messages(channel["id"], start_time,
                                               end_time)
         else:
