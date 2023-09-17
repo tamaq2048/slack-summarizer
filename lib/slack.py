@@ -102,7 +102,9 @@ class SlackClient:
 
         Returns:
             list: A list of chat messages from the specified channel, in the format "Speaker: Message".
-                Returns None if there are no messages or an error occurs.
+                The list includes both main messages and threaded messages. If a threaded message's parent 
+                is not present in the retrieved messages, a placeholder message "System: Earlier message not retrieved" 
+                is added. Returns None if there are no messages or an error occurs.
 
         Raises:
             SlackApiError: If an error occurs while attempting to retrieve the chat history.
@@ -110,9 +112,16 @@ class SlackClient:
         Examples:
             >>> start_time = datetime(2022, 5, 1, 0, 0, 0)
             >>> end_time = datetime(2022, 5, 2, 0, 0, 0)
-            >>> messages = client.load_messages('C12345678', start_time, end_time, wait_time)
-            >>> print(messages[0])
-            "Alice: Hi, Bob! How's it going?"
+            >>> messages = client.load_messages('C12345678', start_time, end_time)
+            >>> for msg in messages:
+            ...     print(msg)
+            ...
+            Alice: Hi, Bob! How's it going?
+            -> Bob: It's going well, Alice! Thanks for asking.
+            -> Charlie: Hey Bob, did you finish that report?
+            Dave: Good morning everyone!
+            System: Earlier message not retrieved
+            -> Eve: I had a question about that too.
         """
 
         @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
@@ -148,9 +157,8 @@ class SlackClient:
                         print("Failed conversations_join()")
                         sys.exit(1)
                     continue  # チャンネルに参加した後、再度メッセージの取得を試みる
-                else:
-                    print(f"Error : {error}")
-                    return None
+                print(f"Error : {error}")
+                return None
 
             if result is None:
                 print("Error: result is None")
@@ -169,7 +177,8 @@ class SlackClient:
         if len(messages) < 1:
             return None
 
-        messages_text = []
+        structured_messages = []
+        threads_messages = {}
         for message in messages[::-1]:
             # Ignore bot messages and empty messages
             if "bot_id" in message or len(message["text"].strip()) == 0:
@@ -187,12 +196,39 @@ class SlackClient:
             # all channel id replace to "other channel"
             body_text = re.sub(r"<#[A-Z0-9]+>", " other channel ", body_text)
 
-            messages_text.append(f"{speaker_name}: {body_text}")
+            # Thread processing
+            if "thread_ts" in message:
+                if message["thread_ts"] == message["ts"]:  # Thread start message
+                    structured_messages.append({"ts": message["ts"], "text": f"{speaker_name}: {body_text}"})
+                else:  # in thread message
+                    thread_text = f"-> {speaker_name}: {body_text}"
+                    if message["thread_ts"] in threads_messages:
+                        threads_messages[message["thread_ts"]].append(thread_text)
+                    else:
+                        threads_messages[message["thread_ts"]] = [thread_text]
+            else:
+                structured_messages.append({"ts": "", "text": f"{speaker_name}: {body_text}"})
 
+        # Integrating thread messages
+        for current_position, target_message in enumerate(structured_messages):
+            timestamp = target_message["ts"]
+            if timestamp in threads_messages:
+                insert_position = current_position + 1
+                for thread_message in threads_messages[timestamp]:
+                    structured_messages.insert(insert_position, {"ts": thread_message["ts"], "text": thread_message["text"]})
+                    insert_position += 1
+            elif timestamp == "":  # This is a standalone message, so we skip it
+                continue
+            else:  # This is a thread message without a parent in structured_messages
+                # Add a placeholder parent message
+                insert_position = current_position + 1
+                structured_messages.insert(insert_position, {"ts": threads_messages["ts"], "text": "System: Earlier message not retrieved"})
+
+        messages_text = [target_message["text"] for target_message in structured_messages]
+        
         if len(messages_text) == 0:
             return None
-        else:
-            return messages_text
+        return messages_text
 
     def get_user_name(self, user_id: str) -> str:
         """ Get the name of a user with the given ID.
