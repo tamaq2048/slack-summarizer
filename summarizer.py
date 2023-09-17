@@ -79,7 +79,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
             break
         except openai.error.ServiceUnavailableError as error:
             if DEBUG:
-                print(f"Error: {error}")
+                print(f"Openai error: {error}")
 
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
@@ -90,14 +90,14 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 break
         except openai.error.Timeout as error:
             if DEBUG:
-                print(f"Error: {error}")
+                print(f"Openai error: {error}")
 
             estimated_tokens = estimate_openai_chat_token_count(text)
             error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
             break
         except openai.error.APIConnectionError as error:
             if DEBUG:
-                print(f"Error: {error}")
+                print(f"Openai error: {error}")
                 
             if i < max_retries - 1:  # i is zero indexed
                 time.sleep(wait_time)  # wait before trying again
@@ -108,7 +108,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 break
         except openai.error.RateLimitError as error:
             if DEBUG:
-                print(f"Error: {error}")
+                print(f"Openai error: {error}")
 
             if i < max_retries - 1:
                 time.sleep(wait_time)
@@ -119,10 +119,12 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 break
 
     if error_message:
+        if DEBUG:
+            print(f"Response: {error_message}")
         return error_message
         
     if DEBUG:
-        print(f"Response: \n{response['choices'][0]['message']['content']}")
+        print(f"Response: \n {response['choices'][0]['message']['content']}")
 
     return response["choices"][0]["message"]['content']
 
@@ -230,7 +232,7 @@ def runner():
         SystemExit: If any of the required environment variables are not set.
     """
     if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "" or SUMMARIZE_PROMPT == "":
-        print("OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID, SUMMARIZE_PROMPT must be set.")
+        print("Error: OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID, SUMMARIZE_PROMPT must be set.")
         sys.exit(1)
     
     # Set OpenAI API key
@@ -251,9 +253,9 @@ def runner():
         messages = slack_client.load_messages(channel["id"], start_time,
                                               end_time)
         if DEBUG:
-            print(f"Channel: {channel['name']}\n")
-            print(f"Messages: {messages}\n")
-            
+            print(f"Channel: {channel['name']}")
+            print(f"Messages: {messages}")
+
         if messages is None:
             continue
 

@@ -154,14 +154,14 @@ class SlackClient:
                     self._wait_api_call()
                     response = _join_conversations(channel=channel_id)
                     if not response["ok"]:
-                        print("Failed conversations_join()")
+                        print("Error: Failed conversations_join()")
                         sys.exit(1)
                     continue  # チャンネルに参加した後、再度メッセージの取得を試みる
                 print(f"Error : {error}")
                 return None
 
             if result is None:
-                print("Error: result is None")
+                print("Error: Result is None")
                 return None
 
             messages_info.extend(result["messages"])
