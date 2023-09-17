@@ -248,11 +248,12 @@ def runner():
 
     result_text = []
     for channel in slack_client.channels:
-        if DEBUG:
-            print(f"Channel: {channel['name']}")
-        
         messages = slack_client.load_messages(channel["id"], start_time,
                                               end_time)
+        if DEBUG:
+            print(f"Channel: {channel['name']}\n")
+            print(f"Messages: {messages}\n")
+            
         if messages is None:
             continue
 
