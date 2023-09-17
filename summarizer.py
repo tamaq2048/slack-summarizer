@@ -124,7 +124,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
         return error_message
         
     if DEBUG:
-        print(f"Response: \n {response['choices'][0]['message']['content']}")
+        print(f"Response:\n{response['choices'][0]['message']['content']}")
 
     return response["choices"][0]["message"]['content']
 
