@@ -226,7 +226,7 @@ class SlackClient:
                 for thread_msg in thread_msgs:
                     structured_messages.append({"ts": thread_msg["ts"], "text": thread_msg["text"]})
                     
-        messages_text = [target_message["text"] for target_message in structured_messages]
+        messages_text = '\n'.join(target_message["text"] for target_message in structured_messages)
         
         if len(messages_text) == 0:
             return None
