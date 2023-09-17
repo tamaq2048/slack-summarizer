@@ -210,20 +210,22 @@ class SlackClient:
                 structured_messages.append({"ts": "", "text": f"{speaker_name}: {body_text}"})
 
         # Integrating thread messages
-        for current_position, target_message in enumerate(structured_messages):
-            timestamp = target_message["ts"]
-            if timestamp in threads_messages:
-                insert_position = current_position + 1
-                for thread_message in threads_messages[timestamp]:
-                    structured_messages.insert(insert_position, {"ts": thread_message["ts"], "text": thread_message["text"]})
+        for thread_ts, thread_msgs in threads_messages.items():
+            # Find the parent message in structured_messages
+            parent_positions = [i for i, msg in enumerate(structured_messages) if msg["ts"] == thread_ts]
+            
+            if parent_positions:
+                # If parent message is found, insert thread messages after it
+                insert_position = parent_positions[0] + 1
+                for thread_msg in thread_msgs:
+                    structured_messages.insert(insert_position, {"ts": thread_msg["ts"], "text": thread_msg["text"]})
                     insert_position += 1
-            elif timestamp == "":  # This is a standalone message, so we skip it
-                continue
-            else:  # This is a thread message without a parent in structured_messages
-                # Add a placeholder parent message
-                insert_position = current_position + 1
-                structured_messages.insert(insert_position, {"ts": threads_messages["ts"], "text": "System: Earlier message not retrieved"})
-
+            else:
+                # If parent message is not found, add a placeholder parent message and then insert thread messages
+                structured_messages.append({"ts": thread_ts, "text": "System: Earlier message not retrieved"})
+                for thread_msg in thread_msgs:
+                    structured_messages.append({"ts": thread_msg["ts"], "text": thread_msg["text"]})
+                    
         messages_text = [target_message["text"] for target_message in structured_messages]
         
         if len(messages_text) == 0:
