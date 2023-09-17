@@ -253,7 +253,7 @@ def runner():
         messages = slack_client.load_messages(channel["id"], start_time,
                                               end_time)
         if DEBUG:
-            print(f"Channel: {channel['name']}")
+            print(f"Channel: {channel['name']}, {channel['id']}")
             print(f"Messages: {messages}")
 
         if messages is None:
