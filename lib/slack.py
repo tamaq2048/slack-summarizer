@@ -1,20 +1,26 @@
 """
 Slack Client Module
 
-This module provides a SlackClient class for managing a Slack bot client. 
-It includes methods for posting messages, loading chat history, 
-retrieving user and channel information, and replacing user IDs with names in messages.
+This module provides a SlackClient class for managing interactions with the Slack API. 
+It allows for the retrieval of chat history, including main messages and threaded replies, 
+from a specified Slack channel within a given time range. The module also provides utilities 
+for formatting the retrieved messages, replacing user IDs with user names, and handling various 
+message subtypes.
 
 Classes:
-    SlackClient: Manages the Slack bot client.
+    SlackClient: Manages interactions with the Slack API and provides methods for retrieving and formatting chat history.
 
 Constants:
     SKIP_SUMMARY_TAG, ADD_SUMMARY_TAG, POST_SUMMARY_TAG: Tags for channel summary management.
+    REPLY_PREFIX: Prefix added to threaded replies in the formatted chat history.
+    EXCLUDED_SUBTYPES, CHANNEL_SUBTYPES, FILE_SUBTYPES, PIN_SUBTYPES, SYSTEM_SUBTYPES: Lists of message subtypes for handling.
 
 Example:
     ```
     client = SlackClient(SLACK_BOT_TOKEN)
-    client.post_message("Hello, World!", "YOUR_CHANNEL_ID")
+    start_time = datetime(2022, 5, 1, 0, 0, 0)
+    end_time = datetime(2022, 5, 2, 0, 0, 0)
+    messages = client.load_messages('C12345678', start_time, end_time)
     ```
 
 Note:
@@ -33,34 +39,40 @@ from lib.utils import retry, sort_by_numeric_prefix
 SKIP_SUMMARY_TAG = "#skip-summary"
 ADD_SUMMARY_TAG = "#add-summary"
 POST_SUMMARY_TAG = "#post-summary"
+REPLY_PREFIX = " -> "
+EXCLUDED_SUBTYPES = ["bot_message", "channel_archive", "me_message",
+                     "message_change", "message_deleted", "message_replied",
+                     "reminder_add"]
+CHANNEL_SUBTYPES = ["channel_join", "channel_leave", "channel_topic",
+                    "channel_purpose", "channel_name", "channel_unarchive"]
+FILE_SUBTYPES = ["file_share", "file_comment", "file_mention"]
+PIN_SUBTYPES = ["pinned_item", "unpinned_item"]
+SYSTEM_SUBTYPES = CHANNEL_SUBTYPES + FILE_SUBTYPES + PIN_SUBTYPES
 
 class SlackClient:
     """ 
-    A class for managing a Slack bot client.
+    A class for managing interactions with the Slack API.
 
-    This class provides methods to post messages to a Slack channel, load messages from a Slack channel,
-    get user names, replace user IDs with names in a message, and retrieve information about all users 
-    and public channels in the Slack workspace.
+    The SlackClient class provides methods for retrieving chat history from a specified Slack channel 
+    within a given time range. It handles main messages, threaded replies, and various message subtypes. 
+    The class also offers utilities for formatting the retrieved messages, replacing user IDs with user names, 
+    and managing API call rate limits.
 
     Args:
         slack_api_token (str): The Slack Bot token used to authenticate with the Slack API.
+        debug_mode (bool, optional): If set to True, additional debug information will be printed. Defaults to False.
 
     Attributes:
         client (WebClient): The Slack WebClient object used for API calls.
         users (list): A list of dictionaries containing information about each user in the Slack workspace.
         channels (list): A list of dictionaries containing information about each public channel in the Slack workspace.
-
-    Example:
-        ```
-        client = SlackClient(SLACK_BOT_TOKEN)
-        client.post_message("Hello, World!", "YOUR_CHANNEL_ID")
-        ```
+        debug_mode (bool): Indicates whether debug mode is active.
 
     Methods:
         post_message(text, channel): Post a message to a specified Slack channel.
-        load_messages(channel_id, start_time, end_time): Load the chat history for the specified channel between the given start and end times.
-        get_user_name(user_id): Get the name of a user with the given ID.
-        replace_user_id_with_name(body_text): Replace user IDs in a chat message text with user names.
+        load_messages(channel_id, start_time, end_time): Retrieve and format the chat history for the specified channel between the given start and end times.
+        get_user_name(user_id): Get the display name of a user with the given ID.
+        replace_user_id_with_name(body_text): Replace user IDs in a chat message text with user display names.
     """
 
     def __init__(self, slack_api_token: str, debug_mode: bool = False):
@@ -90,11 +102,16 @@ class SlackClient:
         if not response["ok"]:
             print(f'Failed to post message: {response["error"]}')
             raise SlackApiError('Failed to post message', response["error"])
-    
+
     def load_messages(self, channel_id: str, start_time: datetime,
-                      end_time: datetime) -> list:
+                    end_time: datetime) -> list:
         """ 
-        Load the chat history for the specified channel between the given start and end times.
+        Retrieve and format the chat history for the specified channel between the given start and end times.
+
+        This method fetches the chat history, including main messages and threaded replies, from the specified Slack channel 
+        within the provided time range. It handles various message subtypes and provides utilities for formatting the 
+        retrieved messages. If a threaded message's parent is not present in the retrieved messages, a placeholder message 
+        "System: Earlier message not retrieved" is added.
 
         Args:
             channel_id (str): The ID of the channel to retrieve the chat history for.
@@ -102,10 +119,8 @@ class SlackClient:
             end_time (datetime): The end time of the time range to retrieve chat history for.
 
         Returns:
-            list: A list of chat messages from the specified channel, in the format "Speaker: Message".
-                The list includes both main messages and threaded messages. If a threaded message's parent 
-                is not present in the retrieved messages, a placeholder message "System: Earlier message not retrieved" 
-                is added. Returns None if there are no messages or an error occurs.
+            list: A list of formatted chat messages from the specified channel. The list includes both main messages and 
+                threaded replies. Returns None if there are no messages or an error occurs.
 
         Raises:
             SlackApiError: If an error occurs while attempting to retrieve the chat history.
@@ -137,7 +152,17 @@ class SlackClient:
                 latest=latest,
                 limit=limit,
                 cursor=cursor)
-        
+
+        @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
+        def _fetch_conversations_replies(channel, timestamp,oldest, latest, limit, cursor=None):
+            return self.client.conversations_replies(
+                channel=channel,
+                ts=timestamp,
+                oldest=oldest,
+                latest=latest,
+                limit=limit,
+                cursor=cursor)
+
         messages_info = []
         next_cursor = None  # 初期のカーソルをNoneに設定
 
@@ -158,40 +183,112 @@ class SlackClient:
                         print("Error: Failed conversations_join()")
                         sys.exit(1)
                     continue  # チャンネルに参加した後、再度メッセージの取得を試みる
-                print(f"Error : {error}")
+                print(f"Error: {error}")
                 return None
 
             if result is None:
                 print("Error: Result is None")
                 return None
-
+ 
             messages_info.extend(result["messages"])
 
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
             else:
                 break  # すべてのメッセージを取得した場合、ループを終了
-                
+
         if self.debug_mode:
             print(f"Total messages fetched: {len(messages_info)}")
             for debug_msg in messages_info:
                 print(debug_msg)
 
-        # Filter for human messages only
-        messages = list(filter(lambda m: "subtype" not in m, messages_info))
+        # Filter out messages with EXCLUDED_SUBTYPES
+        messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES, messages_info))
+
+        # Mark messages for fetching replies and filter out messages that don't require text
+        filtered_messages = []
+        added_thread_starts = set()  # To track which thread starts have been added
+
+        for message in messages:
+            if "thread_ts" in message:
+                if message["ts"] == message["thread_ts"]:
+                    # Mark thread start messages
+                    message["fetch_replies"] = True
+                    filtered_messages.append(message)
+                else:
+                    # Check if the thread's start message is already in the messages list
+                    if any(msg["ts"] == message["thread_ts"] for msg in messages):
+                        continue  # Skip this message as it doesn't require text
+                    else:
+                        # If the thread's start message is not in the list, add a dummy start message
+                        if message["thread_ts"] not in added_thread_starts:
+                            dummy_thread_start = {
+                                "text": "System: Earlier message not retrieved",
+                                "ts": message["thread_ts"],
+                                "fetch_replies": True,
+                                "user": "System"
+                            }
+                            filtered_messages.append(dummy_thread_start)
+                            added_thread_starts.add(message["thread_ts"])
+                        
+                        message["fetch_replies"] = True
+                        filtered_messages.append(message)
+            else:
+                message["fetch_replies"] = False
+                filtered_messages.append(message)
+
+        messages = filtered_messages
 
         if len(messages) < 1:
             return None
 
-        structured_messages = []
-        threads_messages = {}
+        all_target_messages = []
+        for message in messages:
+            all_target_messages.append(message)  # Add the original message to the new list
+
+            if message.get("fetch_replies", False):
+                next_cursor = None
+                while True:
+                    self._wait_api_call()
+                    try:
+                        thread_replies = _fetch_conversations_replies(
+                            channel=channel_id,
+                            timestamp=message["thread_ts"],
+                            oldest=str(start_time.timestamp()),
+                            latest=str(end_time.timestamp()),
+                            limit=1000,
+                            cursor=next_cursor)
+                    except SlackApiError as error:
+                        print(f"Error: Fetching thread replies: {error}")
+                        break
+
+                    if thread_replies is None:
+                        print("Error: Thread replies result is None")
+                        break
+
+                    # Exclude the parent message as it's already in the messages list
+                    for reply in thread_replies["messages"][1:]:
+                        all_target_messages.append(reply)  # Add each reply to the new list
+
+                    if thread_replies["has_more"]:
+                        next_cursor = thread_replies['response_metadata']['next_cursor']
+                    else:
+                        break  # All replies fetched, exit the loop
+
+        messages = all_target_messages
+
+        messages_texts = []
         for message in messages[::-1]:
-            # Ignore bot messages and empty messages
-            if "bot_id" in message or len(message["text"].strip()) == 0:
+            # Ignore empty messages
+            if len(message["text"].strip()) == 0:
                 continue
 
-            # Get speaker name
-            speaker_name = self.get_user_name(message["user"]) or "somebody"
+            # Determine the speaker based on the subtype
+            if "subtype" in message and message["subtype"] in SYSTEM_SUBTYPES:
+                speaker_name = "System"
+            else:
+                # Get speaker name
+                speaker_name = self.get_user_name(message["user"]) or "Somebody"
 
             # Get message body from result dict.
             body_text = message["text"].replace("\n", "\\n")
@@ -199,49 +296,25 @@ class SlackClient:
             # Replace User IDs in a chat message text with user names.
             body_text = self.replace_user_id_with_name(body_text)
 
-            # all channel id replace to "other channel"
+            # Replace all channel ids with "other channel"
             body_text = re.sub(r"<#[A-Z0-9]+>", " other channel ", body_text)
 
-            # Thread processing
-            if "thread_ts" in message:
-                if message["thread_ts"] == message["ts"]:  # Thread start message
-                    structured_messages.append({"ts": message["ts"], "text": f"{speaker_name}: {body_text}"})
-                else:  # in thread message
-                    thread_text = f"-> {speaker_name}: {body_text}"
-                    if message["thread_ts"] in threads_messages:
-                        threads_messages[message["thread_ts"]].append(thread_text)
-                    else:
-                        threads_messages[message["thread_ts"]] = [thread_text]
-            else:
-                structured_messages.append({"ts": "", "text": f"{speaker_name}: {body_text}"})
+            # Determine if the message is a reply
+            if "thread_ts" in message and message["ts"] != message["thread_ts"]:
+                body_text = REPLY_PREFIX + body_text
 
-        # Integrating thread messages
-        for thread_ts, thread_msgs in threads_messages.items():
-            # Find the parent message in structured_messages
-            parent_positions = [i for i, msg in enumerate(structured_messages) if msg["ts"] == thread_ts]
-            
-            if parent_positions:
-                # If parent message is found, insert thread messages after it
-                insert_position = parent_positions[0] + 1
-                for thread_msg in thread_msgs:
-                    structured_messages.insert(insert_position, {"ts": thread_ts, "text": thread_msg})
-                    insert_position += 1
-            else:
-                # If parent message is not found, add a placeholder parent message and then insert thread messages
-                structured_messages.append({"ts": thread_ts, "text": "System: Earlier message not retrieved."})
-                for thread_msg in thread_msgs:
-                    structured_messages.append({"ts": thread_msg["ts"], "text": thread_msg["text"]})
-                    
+            # Construct the final message format
+            messages_texts.append(f"{speaker_name}: {body_text}")
+
         if self.debug_mode:
-            print(f"Structured messages: {len(structured_messages)}")
-            for debug_msg in structured_messages:
+            for debug_msg in messages_texts:
                 print(debug_msg)
 
-        messages_text = '\n'.join(target_message["text"] for target_message in structured_messages)
-        
-        if len(messages_text) == 0:
+        messages_all_text = '\n'.join(messages_texts)
+
+        if len(messages_all_text) == 0:
             return None
-        return messages_text
+        return messages_all_text
 
     def get_user_name(self, user_id: str) -> str:
         """ Get the name of a user with the given ID.
@@ -287,7 +360,7 @@ class SlackClient:
                 user_id)
             body_text = body_text.replace(match.group(0), user_name)
         return body_text
-    
+
     def _get_users_info(self, wait_time=3) -> list:
         """
         Retrieve information about all users in the Slack workspace.
@@ -337,7 +410,7 @@ class SlackClient:
         except SlackApiError as error:
             print(f"Error : {error}")
             sys.exit(1)
-            
+
     def _get_channels_info(self) -> list:
         """
         Retrieve information about all public channels in the Slack workspace.
