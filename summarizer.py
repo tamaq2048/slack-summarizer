@@ -13,7 +13,7 @@ import openai
 import tiktoken
 from slack_sdk.errors import SlackApiError
 from lib.slack import SlackClient
-from lib.slack import POST_SUMMARY_TAG
+from lib.slack import POST_SUMMARY_TAG, REPLY_PREFIX
 from lib.utils import remove_emoji, retry
 
 # Load settings from environment variables
@@ -170,48 +170,46 @@ def estimate_openai_chat_token_count(text: str) -> int:
 
     return token_count
 
-def split_messages_by_token_count(messages_text: str) -> list[str]:
+def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
     """
-    Split a text into subtexts with a maximum token count, considering thread structure.
+    Split a list of strings into sublists with a maximum token count.
 
     Args:
-        messages_text (str): A text containing messages to be split.
+        messages (list[str]): A list of strings to be split.
 
     Returns:
-        list[str]: A list of subtexts, where each subtext has a token count less than or equal to max_body_tokens.
+        list[list[str]]: A list of sublists, where each sublist has a token count less than or equal to max_body_tokens.
     """
-    messages = messages_text.split('\n')
     body_token_counts = [
         estimate_openai_chat_token_count(message) for message in messages
     ]
     result = []
-    current_subtext = ""
+    current_sublist = []
     current_count = 0
     thread_start_message = None
 
     for message, count in zip(messages, body_token_counts):
-        # Check if the message is the start of a thread
-        if not message.startswith("->"):
+        # Check if the message is a thread start or a reply
+        if not message.startswith(REPLY_PREFIX):
             thread_start_message = message
 
         # If adding the current message exceeds the token limit
         if current_count + count > MAX_BODY_TOKENS:
-            # If there's a thread start message, prepend it to the current message
+            # If there's a thread start message, prepend it to the new segment
             if thread_start_message:
-                message = thread_start_message + "\n" + message
-                count += estimate_openai_chat_token_count(thread_start_message)
-
-            # Append the current subtext to the result and reset the subtext and count
-            result.append(current_subtext.strip())
-            current_subtext = ""
+                current_sublist.insert(0, thread_start_message)
+                current_count += estimate_openai_chat_token_count(thread_start_message)
+            
+            result.append(current_sublist)
+            current_sublist = []
             current_count = 0
 
-        current_subtext += message + "\n"
+        current_sublist.append(message)
         current_count += count
 
-    # Append any remaining messages to the result
-    if current_subtext.strip():
-        result.append(current_subtext.strip())
+    # Append any remaining messages
+    if current_sublist:
+        result.append(current_sublist)
 
     return result
 

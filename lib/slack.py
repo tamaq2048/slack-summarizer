@@ -314,11 +314,9 @@ class SlackClient:
             for debug_msg in messages_texts:
                 print(debug_msg)
 
-        messages_all_text = '\n'.join(messages_texts)
-
-        if len(messages_all_text) == 0:
+        if len(messages_texts) == 0:
             return None
-        return messages_all_text
+        return messages_texts
 
     def get_user_name(self, user_id: str) -> str:
         """ Get the name of a user with the given ID.
