@@ -252,7 +252,7 @@ class SlackClient:
                     try:
                         thread_replies = _fetch_conversations_replies(
                             channel=channel_id,
-                            timestamp=message["thread_ts"],
+                            timestamp=message["ts"],
                             oldest=str(start_time.timestamp()),
                             latest=str(end_time.timestamp()),
                             limit=1000,
