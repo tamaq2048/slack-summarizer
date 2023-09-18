@@ -201,11 +201,13 @@ class SlackClient:
         if self.debug_mode:
             print(f"Total messages fetched: {len(messages_info)}")
             for debug_msg in messages_info:
-                print(debug_msg)
+                print(f"Raw Message: \n{debug_msg}")
 
         # Filter out messages with EXCLUDED_SUBTYPES and bot_id
         messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES
                                and "bot_id" not in m, messages_info))
+        # Reverse the order of messages to process them in chronological order
+        messages = messages[::-1]
 
         # Mark messages for fetching replies and filter out messages that don't require text
         filtered_messages = []
@@ -280,7 +282,7 @@ class SlackClient:
         messages = all_target_messages
 
         messages_texts = []
-        for message in messages[::-1]:
+        for message in messages:
             # Ignore empty messages
             if len(message["text"].strip()) == 0:
                 continue
@@ -312,7 +314,7 @@ class SlackClient:
 
         if self.debug_mode:
             for debug_msg in messages_texts:
-                print(debug_msg)
+                print(f"Raw text: \n{debug_msg}")
 
         if len(messages_texts) == 0:
             return None

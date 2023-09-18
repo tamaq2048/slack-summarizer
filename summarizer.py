@@ -52,6 +52,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
     error_message = ""
     wait_time = initial_wait_time
     for i in range(max_retries):
+        response = None
         try:
             response = openai.ChatCompletion.create(
                 model=CHAT_MODEL,
@@ -124,7 +125,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
         return error_message
         
     if DEBUG:
-        print(f"Response:\n{response['choices'][0]['message']['content']}")
+        print(f"Response:\n{response}")
 
     return response["choices"][0]["message"]['content']
 
