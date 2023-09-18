@@ -245,7 +245,7 @@ class SlackClient:
         for message in messages:
             all_target_messages.append(message)  # Add the original message to the new list
 
-            if message.get("fetch_replies", False):
+            if message.get("fetch_replies", True):
                 next_cursor = None
                 while True:
                     self._wait_api_call()
