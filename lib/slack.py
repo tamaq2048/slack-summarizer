@@ -47,7 +47,8 @@ CHANNEL_SUBTYPES = ["channel_join", "channel_leave", "channel_topic",
                     "channel_purpose", "channel_name", "channel_unarchive"]
 FILE_SUBTYPES = ["file_share", "file_comment", "file_mention"]
 PIN_SUBTYPES = ["pinned_item", "unpinned_item"]
-SYSTEM_SUBTYPES = CHANNEL_SUBTYPES + FILE_SUBTYPES + PIN_SUBTYPES
+ORIGINAL_SUBTYPES = ["system"]
+SYSTEM_SUBTYPES = CHANNEL_SUBTYPES + FILE_SUBTYPES + PIN_SUBTYPES + ORIGINAL_SUBTYPES
 
 class SlackClient:
     """ 
@@ -223,6 +224,8 @@ class SlackClient:
                     # If the thread's start message is not in the list, add a dummy start message
                     if message["thread_ts"] not in added_thread_starts:
                         dummy_thread_start = {
+                            "type": "message",
+                            "subtype": "system",
                             "text": "System: Earlier message not retrieved",
                             "ts": message["thread_ts"],
                             "fetch_replies": True,
@@ -304,6 +307,8 @@ class SlackClient:
             # Determine if the message is a reply
             if "thread_ts" in message and message["ts"] != message["thread_ts"]:
                 messages_texts.append(REPLY_PREFIX + body_text)
+            else:
+                messages_texts.append(body_text)
 
         if self.debug_mode:
             for debug_msg in messages_texts:

@@ -170,35 +170,50 @@ def estimate_openai_chat_token_count(text: str) -> int:
 
     return token_count
 
-def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
+def split_messages_by_token_count(messages_text: str) -> list[str]:
     """
-    Split a list of strings into sublists with a maximum token count.
+    Split a text into subtexts with a maximum token count, considering thread structure.
 
     Args:
-        messages (list[str]): A list of strings to be split.
+        messages_text (str): A text containing messages to be split.
 
     Returns:
-        list[list[str]]: A list of sublists, where each sublist has a token count less than or equal to max_body_tokens.
+        list[str]: A list of subtexts, where each subtext has a token count less than or equal to max_body_tokens.
     """
+    messages = messages_text.split('\n')
     body_token_counts = [
         estimate_openai_chat_token_count(message) for message in messages
     ]
     result = []
-    current_sublist = []
+    current_subtext = ""
     current_count = 0
+    thread_start_message = None
 
     for message, count in zip(messages, body_token_counts):
-        if current_count + count <= MAX_BODY_TOKENS:
-            current_sublist.append(message)
-            current_count += count
-        else:
-            result.append(current_sublist)
-            current_sublist = [message]
-            current_count = count
+        # Check if the message is the start of a thread
+        if not message.startswith("->"):
+            thread_start_message = message
 
-    result.append(current_sublist)
+        # If adding the current message exceeds the token limit
+        if current_count + count > MAX_BODY_TOKENS:
+            # If there's a thread start message, prepend it to the current message
+            if thread_start_message:
+                message = thread_start_message + "\n" + message
+                count += estimate_openai_chat_token_count(thread_start_message)
+
+            # Append the current subtext to the result and reset the subtext and count
+            result.append(current_subtext.strip())
+            current_subtext = ""
+            current_count = 0
+
+        current_subtext += message + "\n"
+        current_count += count
+
+    # Append any remaining messages to the result
+    if current_subtext.strip():
+        result.append(current_subtext.strip())
+
     return result
-
 
 @retry(max_retries=5, initial_sleep_time=10, error_type=SlackApiError)
 def post_summary(slack_client, summary, channel_id=None):
