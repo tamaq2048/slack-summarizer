@@ -202,8 +202,9 @@ class SlackClient:
             for debug_msg in messages_info:
                 print(debug_msg)
 
-        # Filter out messages with EXCLUDED_SUBTYPES
-        messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES, messages_info))
+        # Filter out messages with EXCLUDED_SUBTYPES and bot_id
+        messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES
+                               and m not in "bot_id", messages_info))
 
         # Mark messages for fetching replies and filter out messages that don't require text
         filtered_messages = []
@@ -219,20 +220,18 @@ class SlackClient:
                     # Check if the thread's start message is already in the messages list
                     if any(msg["ts"] == message["thread_ts"] for msg in messages):
                         continue  # Skip this message as it doesn't require text
-                    else:
-                        # If the thread's start message is not in the list, add a dummy start message
-                        if message["thread_ts"] not in added_thread_starts:
-                            dummy_thread_start = {
-                                "text": "System: Earlier message not retrieved",
-                                "ts": message["thread_ts"],
-                                "fetch_replies": True,
-                                "user": "System"
-                            }
-                            filtered_messages.append(dummy_thread_start)
-                            added_thread_starts.add(message["thread_ts"])
-                        
-                        message["fetch_replies"] = True
-                        filtered_messages.append(message)
+                    # If the thread's start message is not in the list, add a dummy start message
+                    if message["thread_ts"] not in added_thread_starts:
+                        dummy_thread_start = {
+                            "text": "System: Earlier message not retrieved",
+                            "ts": message["thread_ts"],
+                            "fetch_replies": True,
+                            "user": "System"
+                        }
+                        filtered_messages.append(dummy_thread_start)
+                        added_thread_starts.add(message["thread_ts"])
+                    message["fetch_replies"] = True
+                    filtered_messages.append(message)
             else:
                 message["fetch_replies"] = False
                 filtered_messages.append(message)
@@ -299,12 +298,12 @@ class SlackClient:
             # Replace all channel ids with "other channel"
             body_text = re.sub(r"<#[A-Z0-9]+>", " other channel ", body_text)
 
+            # Construct the final message format
+            body_text = f"{speaker_name}: {body_text}"
+
             # Determine if the message is a reply
             if "thread_ts" in message and message["ts"] != message["thread_ts"]:
-                body_text = REPLY_PREFIX + body_text
-
-            # Construct the final message format
-            messages_texts.append(f"{speaker_name}: {body_text}")
+                messages_texts.append(REPLY_PREFIX + body_text)
 
         if self.debug_mode:
             for debug_msg in messages_texts:
