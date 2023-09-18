@@ -254,7 +254,7 @@ def runner():
                                               end_time)
         if DEBUG:
             print(f"Channel: {channel['name']}, {channel['id']}")
-            print(f"Messages: {messages}")
+            print(f"Messages: \n{messages}")
 
         if messages is None:
             continue

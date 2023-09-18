@@ -218,11 +218,11 @@ class SlackClient:
                 # If parent message is found, insert thread messages after it
                 insert_position = parent_positions[0] + 1
                 for thread_msg in thread_msgs:
-                    structured_messages.insert(insert_position, {"ts": thread_msg["ts"], "text": thread_msg["text"]})
+                    structured_messages.insert(insert_position, {"ts": thread_ts, "text": thread_msg})
                     insert_position += 1
             else:
                 # If parent message is not found, add a placeholder parent message and then insert thread messages
-                structured_messages.append({"ts": thread_ts, "text": "System: Earlier message not retrieved"})
+                structured_messages.append({"ts": thread_ts, "text": "System: Earlier message not retrieved."})
                 for thread_msg in thread_msgs:
                     structured_messages.append({"ts": thread_msg["ts"], "text": thread_msg["text"]})
                     
