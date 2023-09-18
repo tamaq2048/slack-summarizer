@@ -239,7 +239,7 @@ def runner():
     openai.api_key = OPEN_AI_TOKEN
 
     # Set Slack Client
-    slack_client = SlackClient(slack_api_token=SLACK_BOT_TOKEN)
+    slack_client = SlackClient(slack_api_token=SLACK_BOT_TOKEN, debug_mode=DEBUG)
     start_time, end_time = get_time_range()
 
     # Set Prompt Text

@@ -63,10 +63,11 @@ class SlackClient:
         replace_user_id_with_name(body_text): Replace user IDs in a chat message text with user names.
     """
 
-    def __init__(self, slack_api_token: str):
+    def __init__(self, slack_api_token: str, debug_mode: bool = False):
         self.client = WebClient(token=slack_api_token)
         self.users = self._get_users_info()
         self.channels = self._get_channels_info()
+        self.debug_mode = debug_mode
 
     def post_message(self, text: str, channel):
         """
@@ -171,6 +172,11 @@ class SlackClient:
             else:
                 break  # すべてのメッセージを取得した場合、ループを終了
                 
+        if self.debug_mode:
+            print(f"Total messages fetched: {len(messages_info)}")
+            for debug_msg in messages_info:
+                print(debug_msg)
+
         # Filter for human messages only
         messages = list(filter(lambda m: "subtype" not in m, messages_info))
 
@@ -226,6 +232,11 @@ class SlackClient:
                 for thread_msg in thread_msgs:
                     structured_messages.append({"ts": thread_msg["ts"], "text": thread_msg["text"]})
                     
+        if self.debug_mode:
+            print(f"Structured messages: {len(structured_messages)}")
+            for debug_msg in structured_messages:
+                print(debug_msg)
+
         messages_text = '\n'.join(target_message["text"] for target_message in structured_messages)
         
         if len(messages_text) == 0:
