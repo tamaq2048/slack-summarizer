@@ -204,7 +204,7 @@ class SlackClient:
 
         # Filter out messages with EXCLUDED_SUBTYPES and bot_id
         messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES
-                               and m not in "bot_id", messages_info))
+                               and "bot_id" not in m, messages_info))
 
         # Mark messages for fetching replies and filter out messages that don't require text
         filtered_messages = []
@@ -407,7 +407,7 @@ class SlackClient:
                     break
             return users
         except SlackApiError as error:
-            print(f"Error : {error}")
+            print(f"Error: {error}")
             sys.exit(1)
 
     def _get_channels_info(self) -> list:
@@ -450,7 +450,7 @@ class SlackClient:
                                                     get_key=lambda x: x["name"])
             return channels_info
         except SlackApiError as error:
-            print(f"Error : {error}")
+            print(f"Error: {error}")
             sys.exit(1)
 
     def _wait_api_call(self):
