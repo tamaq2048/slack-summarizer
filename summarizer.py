@@ -200,13 +200,13 @@ def split_messages_by_token_count(messages: list[str]) -> list[list[str]]:
             if thread_start_message:
                 current_sublist.insert(0, thread_start_message)
                 current_count += estimate_openai_chat_token_count(thread_start_message)
-            
+
             result.append(current_sublist)
             current_sublist = []
             current_count = 0
-
-        current_sublist.append(message)
-        current_count += count
+        else:
+            current_sublist.append(message)
+            current_count += count
 
     # Append any remaining messages
     if current_sublist:
