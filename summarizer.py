@@ -249,7 +249,9 @@ def runner():
     2. Sets up the OpenAI API key and Slack client.
     3. Determines the time range for message retrieval.
     4. Checks and formats the SUMMARIZE_PROMPT based on the presence of the {language} placeholder.
-    5. Retrieves messages from Slack channels, summarizes them, and posts the summaries back to Slack.
+    5. Retrieves messages from Slack channels.
+    6. Summarizes the messages and posts the summaries back to their respective Slack channels.
+    7. Posts a consolidated summary of all channels to a specified Slack channel (CHANNEL_ID).
     
     Raises:
         SystemExit: If any of the required environment variables are not set.
@@ -271,7 +273,7 @@ def runner():
     else:
         prompt_text = SUMMARIZE_PROMPT
 
-    result_text = []
+    result_texts = []
     for channel in slack_client.channels:
         if DEBUG:
             print(f"Channel: {channel['name']}, {channel['id']}")
@@ -298,17 +300,21 @@ def runner():
             summary = title + "\n".join(channel_summary)
             post_summary(slack_client, summary, channel["id"])
 
-        result_text.append(f"----\n<#{channel['id']}>\n")
-        result_text.extend(channel_summary)
+        result_texts.append(f"----\n<#{channel['id']}>\n")
+        result_texts.extend(channel_summary)
 
     title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
-    summary = title + "\n".join(result_text)
 
     if OUTPUT_SLACK:
-        post_summary(slack_client, summary, CHANNEL_ID)
-
+        post_summary(slack_client, title, CHANNEL_ID)
     if DEBUG:
-        print(f"Summary: {summary}")
+        print(f"Summary: \n{title}")
+
+    for summary in result_texts:
+        if OUTPUT_SLACK:
+            post_summary(slack_client, summary, CHANNEL_ID)
+        if DEBUG:
+            print(f"{summary}")
 
 if __name__ == '__main__':
     runner()
