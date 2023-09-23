@@ -200,8 +200,9 @@ class SlackClient:
 
         if self.debug_mode:
             print(f"Total messages fetched: {len(messages_info)}")
+            if len(messages_info) > 0: print("Raw Message: \n")
             for debug_msg in messages_info:
-                print(f"Raw Message: \n{debug_msg}")
+                print(f"{debug_msg}")
 
         # Filter out messages with EXCLUDED_SUBTYPES and bot_id
         messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES
@@ -313,8 +314,9 @@ class SlackClient:
                 messages_texts.append(body_text)
 
         if self.debug_mode:
+            if len(messages_texts) > 0: print("Raw text: \n")
             for debug_msg in messages_texts:
-                print(f"Raw text: \n{debug_msg}")
+                print(f"{debug_msg}")
 
         if len(messages_texts) == 0:
             return None
