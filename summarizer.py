@@ -129,28 +129,37 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
 
     return response["choices"][0]["message"]['content']
 
-def get_time_range():
+def get_time_range(hours_back: int = None) -> (datetime, datetime):
     """
-    Get a time range starting from 25 hours ago and ending at the current time.
+    Get the start and end times for the chat history retrieval.
+
+    Args:
+        hours_back (int, optional): The number of hours to go back from the current time. 
+                                    If not provided, the function will default to retrieving 
+                                    the chat history from the previous day's 0:00 to the current day's 1:00.
 
     Returns:
-        tuple: A tuple containing the start and end times of the time range, as datetime objects.
+        tuple: A tuple containing the start and end times (start_time, end_time) without microseconds.
 
     Examples:
-        >>> start_time, end_time = get_time_range()
-        >>> print(start_time, end_time)
-        2022-05-17 09:00:00+09:00 2022-05-18 10:00:00+09:00
-    """
-    hours_back = 25
-    timezone = pytz.timezone(TIMEZONE_STR)
-    now = datetime.now(timezone)
-    yesterday = now - timedelta(hours=hours_back)
-    start_time = datetime(yesterday.year, yesterday.month, yesterday.day,
-                          yesterday.hour, yesterday.minute, yesterday.second)
-    end_time = datetime(now.year, now.month, now.day, now.hour, now.minute,
-                        now.second)
-    return start_time, end_time
+        >>> get_time_range()
+        (datetime.datetime(2022, 5, 1, 0, 0), datetime.datetime(2022, 5, 2, 1, 0))
 
+        >>> get_time_range(5)
+        (datetime.datetime(2022, 5, 1, 20, 0), datetime.datetime(2022, 5, 2, 1, 0))
+    """
+    current_time = datetime.now().replace(microsecond=0)
+
+    if hours_back is None:
+        # If hours_back is not provided, default to the previous day's chat history
+        start_time = datetime(current_time.year, current_time.month, current_time.day - 1, 0, 0, 0)
+        end_time = datetime(current_time.year, current_time.month, current_time.day, 1, 0, 0)
+    else:
+        # If hours_back is provided, calculate the start and end times based on the current time
+        end_time = current_time
+        start_time = current_time - timedelta(hours=hours_back)
+
+    return start_time, end_time
 
 def estimate_openai_chat_token_count(text: str) -> int:
     """
