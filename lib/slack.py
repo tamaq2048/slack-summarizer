@@ -191,18 +191,7 @@ class SlackClient:
                 print("Error: Result is None")
                 return None
 
-            if result["messages"] is None:
-                unkwon_thread_start = {
-                    "type": "message",
-                    "subtype": "system",
-                    "text": "System: Unknown thread start",
-                    "ts": result["ts"],
-                    "fetch_replies": True,
-                    "user": "System"
-                }
-                messages_info.append(unkwon_thread_start)
-            else:
-                messages_info.append(result["messages"])
+            messages_info.append(result["messages"])
 
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
