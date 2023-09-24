@@ -190,8 +190,19 @@ class SlackClient:
             if result is None:
                 print("Error: Result is None")
                 return None
- 
-            messages_info.extend(result["messages"])
+            elif result["messages"] is None:
+                messages_info.extend(
+                        unkwon_thread_start = {
+                            "type": "message",
+                            "subtype": "system",
+                            "text": "System: Unknown thread start",
+                            "ts": result["ts"],
+                            "fetch_replies": True,
+                            "user": "System"
+                        }
+                )
+            else:
+                messages_info.extend(result["messages"])
 
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
@@ -200,7 +211,7 @@ class SlackClient:
 
         if self.debug_mode:
             print(f"Total messages fetched: {len(messages_info)}")
-            if len(messages_info) > 0: print("Raw Message: \n")
+            if len(messages_info) > 0: print("Raw message: \n")
             for debug_msg in messages_info:
                 print(f"{debug_msg}")
 

@@ -321,7 +321,7 @@ def runner():
         if OUTPUT_SLACK:
             post_summary(slack_client, channel_summary, CHANNEL_ID)
         if DEBUG:
-            print(f"{summary}")
+            print(f"{channel_summary}")
 
 if __name__ == '__main__':
     runner()
