@@ -49,15 +49,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
         >>> summarize("Alice: Hi\nBob: Hello\nAlice: How are you?\nBob: I'm doing well, thanks.", "Summarize the following chat log.")
         '- Alice greeted Bob.\n- Bob responded with a greeting.\n- Alice asked how Bob was doing.\n- Bob replied that he was doing well.'
     """
-    error_message = ""
-    wait_time = initial_wait_time
-    for i in range(max_retries):
-        response = None
-        try:
-            response = openai.ChatCompletion.create(
-                model=CHAT_MODEL,
-                temperature=TEMPERATURE,
-                messages=[{
+    messages = [{
                     "role":
                     "system",
                     "content":
@@ -75,7 +67,17 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                         prompt_text,
                         f"Write in {language}.", "", text
                     ])
-                }])
+                }]
+    response = None
+    error_response = ""
+    wait_time = initial_wait_time
+    for i in range(max_retries):
+        try:
+            response = openai.ChatCompletion.create(
+                model=CHAT_MODEL,
+                temperature=TEMPERATURE,
+                messages=messages
+            )
             time.sleep(REQUEST_INTERVAL)  # wait to avoid exceeding rate limit
             break
         except openai.error.ServiceUnavailableError as error:
@@ -87,14 +89,14 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 wait_time *= 2  # double the wait time for the next retry
                 continue
             else:
-                error_message = "The service is currently unavailable. Please try again later."
+                error_response = "The service is currently unavailable. Please try again later."
                 break
         except openai.error.Timeout as error:
             if DEBUG:
                 print(f"Openai error: {error}")
 
             estimated_tokens = estimate_openai_chat_token_count(text)
-            error_message = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
+            error_response = f"Timeout error occurred. The estimated token count is {estimated_tokens}. Please try again with shorter text."
             break
         except openai.error.APIConnectionError as error:
             if DEBUG:
@@ -105,7 +107,7 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 wait_time *= 2  # double the wait time for the next retry
                 continue
             else:
-                error_message = "A connection error occurred. Please check your internet connection and try again."
+                error_response = "A connection error occurred. Please check your internet connection and try again."
                 break
         except openai.error.RateLimitError as error:
             if DEBUG:
@@ -116,18 +118,21 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 wait_time *= 2
                 continue
             else:
-                error_message = "Exceeded rate limit. Please try again later."
+                error_response = "Exceeded rate limit. Please try again later."
                 break
 
-    if error_message:
+    if DEBUG:
+        print(f"Messages:\n{messages}")
+
+    if error_response:
         if DEBUG:
-            print(f"Response: {error_message}")
-        return error_message
+            print(f"Response: {error_response}")
+        return error_response
         
     if DEBUG:
-        print(f"Response:\n{response}")
+        print(f"Response:\n{response['choices'][0]['message']['content']}")
 
-    return response["choices"][0]["message"]['content']
+    return response['choices'][0]['message']['content']
 
 def get_time_range(hours_back: int = None) -> (datetime, datetime):
     """
