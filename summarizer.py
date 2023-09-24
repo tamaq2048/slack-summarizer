@@ -274,7 +274,7 @@ def runner():
     else:
         prompt_text = SUMMARIZE_PROMPT
 
-    result_texts = []
+    channel_summaries = []
     for channel in slack_client.channels:
         if DEBUG:
             print(f"Channel: {channel['name']}, {channel['id']}")
@@ -290,19 +290,20 @@ def runner():
         # remove emojis in messages
         messages = list(map(remove_emoji, messages))
 
-        channel_summary = []
+        summary = []
         for splitted_messages in split_messages_by_token_count(messages):
             text = summarize("\n".join(splitted_messages), prompt_text, LANGUAGE)
-            channel_summary.append(text)
+            summary.append(text)
 
         # Post summary to the channel if #post-summary tag is in the channel description
         if POST_SUMMARY_TAG in channel["purpose"]["value"]:
             title = f"{start_time.strftime('%Y-%m-%d')} {channel['name']} summary\n\n"
-            summary = title + "\n".join(channel_summary)
-            post_summary(slack_client, summary, channel["id"])
+            channel_summary = title + "\n".join(summary)
+            post_summary(slack_client, channel_summary, channel["id"])
 
-        result_texts.append(f"----\n<#{channel['id']}>\n")
-        result_texts.extend(channel_summary)
+        title = f"----\n<#{channel['id']}>\n"
+        channel_summary = title + "\n".join(summary)
+        channel_summaries.append(channel_summary)
 
     title = f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n"
 
@@ -311,9 +312,9 @@ def runner():
     if DEBUG:
         print(f"Summary: \n{title}")
 
-    for summary in result_texts:
+    for channel_summary in channel_summaries:
         if OUTPUT_SLACK:
-            post_summary(slack_client, summary, CHANNEL_ID)
+            post_summary(slack_client, channel_summary, CHANNEL_ID)
         if DEBUG:
             print(f"{summary}")
 
