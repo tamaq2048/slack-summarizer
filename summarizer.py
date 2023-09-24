@@ -21,7 +21,7 @@ OPEN_AI_TOKEN = os.environ.get('OPEN_AI_TOKEN', '').strip()
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN', '').strip()
 CHANNEL_ID = os.environ.get('SLACK_POST_CHANNEL_ID', '').strip()
 LANGUAGE = str(os.environ.get('LANGUAGE') or "Japanese").strip()
-TIMEZONE_STR = str(os.environ.get('TIMEZONE') or 'Asia/Tokyo').strip()
+TIMEZONE = str(os.environ.get('TIMEZONE') or 'Asia/Tokyo').strip()
 TEMPERATURE = float(os.environ.get('TEMPERATURE') or 0.3)
 CHAT_MODEL = str(os.environ.get('CHAT_MODEL') or "gpt-3.5-turbo").strip()
 ENCODING_MODEL = str(os.environ.get('ENCODING_MODEL') or "cl100k_base").strip()
@@ -148,12 +148,13 @@ def get_time_range(hours_back: int = None) -> (datetime, datetime):
         >>> get_time_range(5)
         (datetime.datetime(2022, 5, 1, 20, 0), datetime.datetime(2022, 5, 2, 1, 0))
     """
-    current_time = datetime.now().replace(microsecond=0)
+    tz = pytz.timezone(TIMEZONE)
+    current_time = datetime.now(tz).replace(microsecond=0)
 
     if hours_back is None:
         # If hours_back is not provided, default to the previous day's chat history
-        start_time = datetime(current_time.year, current_time.month, current_time.day - 1, 0, 0, 0)
-        end_time = datetime(current_time.year, current_time.month, current_time.day, 1, 0, 0)
+        start_time = current_time.replace(hour=0, minute=0, second=0) - timedelta(days=1)
+        end_time = current_time.replace(hour=1, minute=0, second=0)
     else:
         # If hours_back is provided, calculate the start and end times based on the current time
         end_time = current_time
@@ -303,7 +304,7 @@ def runner():
         result_texts.append(f"----\n<#{channel['id']}>\n")
         result_texts.extend(channel_summary)
 
-    title = (f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n")
+    title = f"{start_time.strftime('%Y-%m-%d')} public channels summary\n\n"
 
     if OUTPUT_SLACK:
         post_summary(slack_client, title, CHANNEL_ID)
