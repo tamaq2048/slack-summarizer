@@ -191,7 +191,9 @@ class SlackClient:
                 print("Error: Result is None")
                 return None
 
-            messages_info.append(result["messages"])
+            messages_info.extend(result["messages"])
+            if self.debug_mode:
+                print(f"Row result: \n{result}")
 
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
