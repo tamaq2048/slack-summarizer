@@ -191,9 +191,6 @@ class SlackClient:
                 print("Error: Result is None")
                 return None
 
-            if self.debug_mode:
-                print(f"Result: {result}\n")
-
             if result["messages"] is None:
                 unkwon_thread_start = {
                     "type": "message",
