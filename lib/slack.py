@@ -191,16 +191,15 @@ class SlackClient:
                 print("Error: Result is None")
                 return None
             elif result["messages"] is None:
-                messages_info.extend(
-                        unkwon_thread_start = {
-                            "type": "message",
-                            "subtype": "system",
-                            "text": "System: Unknown thread start",
-                            "ts": result["ts"],
-                            "fetch_replies": True,
-                            "user": "System"
-                        }
-                )
+                unkwon_thread_start = {
+                    "type": "message",
+                    "subtype": "system",
+                    "text": "System: Unknown thread start",
+                    "ts": result["ts"],
+                    "fetch_replies": True,
+                    "user": "System"
+                }
+                messages_info.append(unkwon_thread_start)
             else:
                 messages_info.extend(result["messages"])
 
