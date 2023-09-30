@@ -54,7 +54,14 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                     "system",
                     "content":
                     "\n".join([
-                        'The chat log format consists of one line per message in the format "Speaker: Message".',
+                        "The chat log is structured with each message on a new line, separated by a colon into 'Speaker: Message' format.",
+                        "A message prefixed with '->' is a reply to the previous message.",
+                        "Words starting with '@' are mentions, indicating a call-out or reference to a specific person or group within the team.",
+                        "Please consider this structure and these elements while summarizing to understand the context and relation between messages.",
+                        "Ensure that the summary is presented as a list of bullet points using Markdown syntax, like so:",
+                        " - Point 1",
+                        " - Point 2",
+                        " - Point 3",
                         "The `\\n` within the message represents a line break."
                         f'The user understands {language} only.',
                         f'So, The assistant need to speak in {language}.',
