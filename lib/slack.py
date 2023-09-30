@@ -344,7 +344,7 @@ class SlackClient:
         return matching_users[0]['profile']['display_name'] if len(matching_users) > 0 else None
 
     def replace_user_id_with_name(self, body_text: str) -> str:
-        """ Replace user IDs in a chat message text with user names.
+        """ Replace user IDs in a chat message text with user names prefixed with '@'.
 
         Args:
             body_text (str): The text of a chat message.
@@ -352,7 +352,7 @@ class SlackClient:
                 Each dictionary must have 'id' and 'name' keys.
 
         Returns:
-            str: The text of the chat message with user IDs replaced with user names.
+            str: The text of the chat message with user IDs replaced with user names prefixed with '@'.
 
         Examples:
             >>> users = [{'id': 'U1234', 'name': 'Alice'}, {'id': 'U5678', 'name': 'Bob'}]
@@ -364,8 +364,8 @@ class SlackClient:
         for match in re.finditer(pattern, body_text):
             user_id = match.group(1)
             user_name = next(
-                (user['name'] for user in self.users if user['id'] == user_id),
-                user_id)
+                (f"@{user['name']}" for user in self.users if user['id'] == user_id),
+                f"@{user_id}")
             body_text = body_text.replace(match.group(0), user_name)
         return body_text
 
