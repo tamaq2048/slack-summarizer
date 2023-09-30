@@ -306,6 +306,12 @@ class SlackClient:
             # Replace all channel ids with "other channel"
             body_text = re.sub(r"<#[A-Z0-9]+>", " other channel ", body_text)
 
+            # Replace all @here, @channel, @everyone mentions with "@allmembers"
+            body_text = re.sub(r"<!here>|<!channel>|<!everyone>", "@allmembers", body_text)
+
+            # Replace all custom user group mentions with the name after the pipe character
+            body_text = re.sub(r"<!subteam\^[A-Z0-9]+\|@([a-zA-Z0-9_]+)>", r" @\1 ", body_text)
+
             # Construct the final message format
             body_text = f"{speaker_name}: {body_text}"
 
