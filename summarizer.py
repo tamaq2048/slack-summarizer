@@ -122,13 +122,13 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
                 break
 
     if DEBUG:
-        print(f"Messages:\n{messages}")
+        print(f"Request:\n{messages}")
 
     if error_response:
         if DEBUG:
             print(f"Response: {error_response}")
         return error_response
-        
+
     if DEBUG:
         print(f"Response:\n{response['choices'][0]['message']['content']}")
 
@@ -265,7 +265,7 @@ def runner():
     if OPEN_AI_TOKEN == "" or SLACK_BOT_TOKEN == "" or CHANNEL_ID == "" or SUMMARIZE_PROMPT == "":
         print("Error: OPEN_AI_TOKEN, SLACK_BOT_TOKEN, CHANNEL_ID, SUMMARIZE_PROMPT must be set.")
         sys.exit(1)
-    
+
     # Set OpenAI API key
     openai.api_key = OPEN_AI_TOKEN
 

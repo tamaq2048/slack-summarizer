@@ -193,7 +193,7 @@ class SlackClient:
 
             messages_info.extend(result["messages"])
             if self.debug_mode:
-                print(f"Row result: \n{result}")
+                print(f"Raw result: \n{result}")
 
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
