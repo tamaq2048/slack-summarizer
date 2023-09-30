@@ -120,6 +120,13 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
             else:
                 error_response = "Exceeded rate limit. Please try again later."
                 break
+        except openai.error.InvalidRequestError as error:
+            if DEBUG:
+                print(f"Openai error: {error}")
+
+            estimated_tokens = estimate_openai_chat_token_count(text)
+            error_response = f"Your messages resulted in {estimated_tokens} tokens. Please reduce the length of the messages."
+            break
 
     if DEBUG:
         print(f"Request:\n{messages}")

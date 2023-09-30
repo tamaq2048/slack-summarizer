@@ -231,7 +231,7 @@ class SlackClient:
                         dummy_thread_start = {
                             "type": "message",
                             "subtype": "system",
-                            "text": "System: Earlier message not retrieved",
+                            "text": "Earlier message not retrieved",
                             "ts": message["thread_ts"],
                             "fetch_replies": True,
                             "user": "System"
