@@ -27,6 +27,7 @@ Note:
     Requires the `slack_sdk` package.
 """
 
+import logging
 import re
 import sys
 import time
@@ -82,6 +83,19 @@ class SlackClient:
         self.channels = self._get_channels_info()
         self.debug_mode = debug_mode
 
+        # ロガーの設定
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
+        # ログフォーマットの設定
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        # コンソールハンドラの設定
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        console_handler.setFormatter(formatter)
+        self.logger.addHandler(console_handler)
+
     def post_message(self, text: str, channel):
         """
         Post a message to a specified Slack channel.
@@ -101,7 +115,7 @@ class SlackClient:
         """
         response = self.client.chat_postMessage(channel=channel, text=text)
         if not response["ok"]:
-            print(f'Failed to post message: {response["error"]}')
+            self.logger.error('Failed to post message: %s', {response["error"]})
             raise SlackApiError('Failed to post message', response["error"])
 
     def load_messages(self, channel_id: str, start_time: datetime,
@@ -181,30 +195,30 @@ class SlackClient:
                     self._wait_api_call()
                     response = _join_conversations(channel=channel_id)
                     if not response["ok"]:
-                        print("Error: Failed conversations_join()")
-                        sys.exit(1)
+                        self.logger.error('Failed conversation join: %s', {channel_id})
                     continue  # チャンネルに参加した後、再度メッセージの取得を試みる
-                print(f"Error: {error}")
+                self.logger.error({error})
                 return None
 
             if result is None:
-                print("Error: Result is None")
+                self.logger.error('Result is None')
                 return None
 
             messages_info.extend(result["messages"])
             if self.debug_mode:
-                print(f"Raw result: \n{result}")
+                self.logger.debug('Raw result: %s', {result})
 
             if result["has_more"]:
                 next_cursor = result['response_metadata']['next_cursor']
             else:
                 break  # すべてのメッセージを取得した場合、ループを終了
 
+        self.logger.info('Total messages fetched: %s', {len(messages_info)})
         if self.debug_mode:
-            print(f"Total messages fetched: {len(messages_info)}")
-            if len(messages_info) > 0: print("Raw message: \n")
-            for debug_msg in messages_info:
-                print(f"{debug_msg}")
+            if len(messages_info) > 0:
+                self.logger.debug('Raw message:')
+                for debug_msg in messages_info:
+                    self.logger.debug('%s', {debug_msg})
 
         # Filter out messages with EXCLUDED_SUBTYPES and bot_id
         messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES
@@ -266,11 +280,11 @@ class SlackClient:
                             limit=1000,
                             cursor=next_cursor)
                     except SlackApiError as error:
-                        print(f"Error: Fetching thread replies: {error}")
+                        self.logger.error('Failed conversation replies: %s', {error})
                         break
 
                     if thread_replies is None:
-                        print("Error: Thread replies result is None")
+                        self.logger.error('Thread replies result is None')
                         break
 
                     # Exclude the parent message as it's already in the messages list
@@ -322,9 +336,10 @@ class SlackClient:
                 messages_texts.append(body_text)
 
         if self.debug_mode:
-            if len(messages_texts) > 0: print("Raw text: \n")
-            for debug_msg in messages_texts:
-                print(f"{debug_msg}")
+            if len(messages_texts) > 0:
+                self.logger.debug('Formatted message:')
+                for debug_msg in messages_texts:
+                    self.logger.debug('%s', {debug_msg})
 
         if len(messages_texts) == 0:
             return None
@@ -422,9 +437,8 @@ class SlackClient:
                     break
             return users
         except SlackApiError as error:
-            print(f"Error: {error}")
-            sys.exit(1)
-
+            self.logger.error('Failed to get users info: %s', {error})
+        
     def _get_channels_info(self) -> list:
         """
         Retrieve information about all public channels in the Slack workspace.
@@ -465,8 +479,7 @@ class SlackClient:
                                                     get_key=lambda x: x["name"])
             return channels_info
         except SlackApiError as error:
-            print(f"Error: {error}")
-            sys.exit(1)
+            self.logger.error({error})
 
     def _wait_api_call(self):
         """ most of api call limit is 20 per minute """
