@@ -50,31 +50,29 @@ def summarize(text: str, prompt_text: str, language: str, max_retries: int = 3, 
         '- Alice greeted Bob.\n- Bob responded with a greeting.\n- Alice asked how Bob was doing.\n- Bob replied that he was doing well.'
     """
     messages = [{
-                    "role":
-                    "system",
-                    "content":
-                    "\n".join([
-                        "The chat log is structured with each message on a new line, separated by a colon into 'Speaker: Message' format.",
-                        "A message prefixed with '->' is a reply to the previous message.",
-                        "Words starting with '@' are mentions, indicating a call-out or reference to a specific person or group within the team.",
-                        "Please consider this structure and these elements while summarizing to understand the context and relation between messages.",
-                        "Ensure that the summary is presented as a list of bullet points using Markdown syntax, like so:",
-                        " - Point 1",
-                        " - Point 2",
-                        " - Point 3",
-                        "The `\\n` within the message represents a line break."
-                        f'The user understands {language} only.',
-                        f'So, The assistant need to speak in {language}.',
-                    ])
-                }, {
-                    "role":
-                    "user",
-                    "content":
-                    "\n".join([
-                        prompt_text,
-                        f"Write in {language}.", "", text
-                    ])
-                }]
+        "role": "system",
+        "content": "\n".join([
+            "チャットログは、'発言者（Slackのユーザ）: メッセージ（Slackの投稿）'の形式でコロンで区切られ、各メッセージが新しい行に配置されています。",
+            "'->'で始まるメッセージは、前のメッセージへの返信です。",
+            "'@'で始まる単語はメンションであり、チーム内の特定の人物やグループを指し示すことを意味します。",
+            "メッセージ内の`\\n`は改行を表します。",
+            "この構造とこれらの要素を考慮して、メッセージ間の文脈と関係を理解しながら要約してください。",
+            "要約は、次のようにMarkdown構文を使用して箇条書きのリストとして提示してください。",
+            " - ポイント1",
+            " - ポイント2",
+            " - ポイント3",
+            "また、要約内で特定の人物やグループを指し示す場合に'@'を付けないようにしてください。",
+            f"ユーザーは{language}のみを理解します。",
+            f"そのため、要約を生成するアシスタントは{language}で要約を書く必要があります。",
+        ])
+    }, {
+        "role": "user",
+        "content": "\n".join([
+            prompt_text,
+            f"以下にチャットログを示します。{language}で要約してください。", "", text
+        ])
+    }]
+
     response = None
     error_response = ""
     wait_time = initial_wait_time
