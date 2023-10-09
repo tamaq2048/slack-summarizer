@@ -41,3 +41,4 @@ jobs:
           REQUEST_INTERVAL: ${{ vars.REQUEST_INTERVAL }}
           SUMMARIZE_PROMPT: ${{ vars.SUMMARIZE_PROMPT }}
           OUTPUT_SLACK: ${{ vars.OUTPUT_SLACK }}
+          SLACK_API_WAITTIME: ${{ vars.SLACK_API_WAITTIME }}
