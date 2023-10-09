@@ -31,6 +31,7 @@ import os
 import logging
 import re
 import time
+import pprint
 from datetime import datetime
 from slack_sdk.errors import SlackApiError
 from slack_sdk import WebClient
@@ -218,8 +219,7 @@ class SlackClient:
         logger.info('Total messages fetched: %s', {len(messages_info)})
         if len(messages_info) > 0:
             logger.debug('Raw message:')
-            for debug_msg in messages_info:
-                logger.debug('%s', debug_msg)
+            logger.debug(pprint.pformat(messages_info))
 
         # Filter out messages with EXCLUDED_SUBTYPES and bot_id
         messages = list(filter(lambda m: m.get("subtype") not in EXCLUDED_SUBTYPES
@@ -338,8 +338,7 @@ class SlackClient:
 
         if len(messages_texts) > 0:
             logger.debug('Formatted message:')
-            for debug_msg in messages_texts:
-                logger.debug('%s', debug_msg)
+            logger.debug(pprint.pformat(messages_texts))
 
         if len(messages_texts) == 0:
             return None
