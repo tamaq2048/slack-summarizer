@@ -3,7 +3,3 @@ slack_sdk==3.21.2       # 最新バージョンに更新
 openai==0.28.1          # 最新バージョンに更新
 emoji==2.8.0            # 最新バージョンに更新
 tiktoken==0.5.1         # 最新バージョンに更新
-aiohttp==3.8.6          # 最新バージョンに更新
-multidict==6.0.4        # aiohttpの依存関係を明示的にインストール
-yarl==1.9.2             # aiohttpの依存関係を明示的にインストール
-async_timeout==4.0.3    # aiohttpの依存関係を明示的にインストール
