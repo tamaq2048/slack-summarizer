@@ -1,4 +1,4 @@
-﻿name: Delete old workflow runs
+﻿name: Delete slack-summanrizer workflow runs
 on:
   workflow_dispatch:
 jobs:
